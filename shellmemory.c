@@ -8,6 +8,7 @@ struct memory_struct{
 };
 
 struct memory_struct shellmemory[1000];
+struct memory_struct varStore[1000];
 
 // Helper functions
 int match(char *model, char *var) {
