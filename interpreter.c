@@ -200,7 +200,7 @@ int run(char* script){
 		lineCount++;
 		sprintf(lineBuffer, "%d", lineCount);
 
-		if(lineCount == 3) startPosition = set(lineBuffer, line);
+		if(lineCount == 1) startPosition = set(lineBuffer, line);
 		else set(lineBuffer, line);
 
 		memset(line, 0, sizeof(line));

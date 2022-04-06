@@ -14,6 +14,7 @@ typedef struct PCB {
     int lenScore;
     int pc; // current line to execute
     struct PCB *next;
+    int pageTable[100];
 } PCB;
 
 PCB *head = NULL; // global head of ready queue
@@ -54,7 +55,7 @@ int schedulerStart(char *scripts[], int progNum){
             fgets(line, 999, p);
             lineCount++;
             sprintf(buff, "%d", lineCount);
-            if(lineCount == 3) startPosition = insert(buff, line);
+            if(lineCount == 1) startPosition = insert(buff, line);
             else insert(buff, line);
 
             memset(line, 0, sizeof(line));
