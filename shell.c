@@ -12,10 +12,16 @@ int parseInput(char ui[]);
 
 // Start of everything
 int main(int argc, char *argv[]) {
-
 	printf("%s\n", "Shell version 1.1 Created January 2022");
 	help();
 
+	int error = system("mkdir backingStore");
+	
+	if(error == -1){
+		system("rm -rf backingStore");
+		system("mkdir backingStore");
+	}
+  	
 	char prompt = '$';  				// Shell prompt
 	char userInput[MAX_USER_INPUT];		// user's input stored here
 	int errorCode = 0;					// zero means no error, default

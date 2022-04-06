@@ -41,8 +41,10 @@ int schedulerStart(char *scripts[], int progNum){
     int lineCount, startPosition;
     char buff[10];
 
-    for(int i = 0; i < progNum; i++){        
-        FILE *p = fopen(scripts[i],"rt"); 
+    for(int i = 0; i < progNum; i++){     
+        char file[100] = "backingStore/";
+        strcat(file, scripts[i]);
+        FILE *p = fopen(file,"rt"); 
         if(p == NULL) return badcommandFileDoesNotExist();
         
         lineCount = 0;
@@ -52,7 +54,7 @@ int schedulerStart(char *scripts[], int progNum){
             fgets(line, 999, p);
             lineCount++;
             sprintf(buff, "%d", lineCount);
-            if(lineCount == 1) startPosition = insert(buff, line);
+            if(lineCount == 3) startPosition = insert(buff, line);
             else insert(buff, line);
 
             memset(line, 0, sizeof(line));

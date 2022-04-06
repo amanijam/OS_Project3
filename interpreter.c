@@ -20,6 +20,7 @@ int set(char* var, char* value);
 int print(char* var);
 int run(char* script);
 int ls();
+int resetmem();
 
 // Interpret commands and their arguments
 int interpreter(char* command_args[], int args_size){
@@ -99,15 +100,13 @@ int interpreter(char* command_args[], int args_size){
 		char *scripts[3];
 		for(int i = 1; i < numOfProgs+1; i++){
 			scripts[i-1] = command_args[i];
+			char command[50] = "";
+			strcat(command, "cp ");
+			strcat(command, scripts[i-1]);
+			strcat(command, " backingStore");
+			system(command);
 		}
 
-		for(int i = 0; i < numOfProgs-1; i++){
-			for (int j = i+1; j < numOfProgs; j++){
-				if (strcmp(scripts[i], scripts[j]) == 0){
-					return badcommandSameName();
-				}
-			}
-		}
 
 		if(strcmp(policy, "FCFS") == 0
 		   || strcmp(policy, "SJF")== 0 
@@ -141,6 +140,7 @@ int help(){
 }
 
 int quit(){
+	system("rm -rf backingStore");
 	printf("%s\n", "Bye!");
 	exit(0);
 }
@@ -184,7 +184,9 @@ int print(char* var){
 int run(char* script){
 	int errCode = 0;
 	char line[1000];
-	FILE *p = fopen(script,"rt"); 
+	char file[100] = "backingStore/";
+    strcat(file, script);
+	FILE *p = fopen(file,"rt"); 
 
 	if(p == NULL) return badcommandFileDoesNotExist();
 	
@@ -198,7 +200,7 @@ int run(char* script){
 		lineCount++;
 		sprintf(lineBuffer, "%d", lineCount);
 
-		if(lineCount == 1) startPosition = set(lineBuffer, line);
+		if(lineCount == 3) startPosition = set(lineBuffer, line);
 		else set(lineBuffer, line);
 
 		memset(line, 0, sizeof(line));
@@ -223,4 +225,9 @@ int run(char* script){
 
 int ls(){
 	return system("ls -1"); // lists directories in alphabetical order, 1 entry per line
+}
+
+int resetmem(){
+	mem_init();
+	return 0;
 }
