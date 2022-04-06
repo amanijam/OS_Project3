@@ -33,7 +33,7 @@ char *extract(char *model) {
 }
 
 
-// Shell memory functions
+// Shell memory functions (Frame Store)
 
 void mem_init(){
 
