@@ -21,6 +21,7 @@ PCB *head = NULL; // global head of ready queue
 char *policy;
 int latestPid; // holds last used pid, in order to ensure all pid's are unique
 
+
 void setPolicy(char *p);
 int schedulerStart(char *scripts[], int progNum);
 void runQueue(int progNum);
@@ -39,6 +40,7 @@ int schedulerStart(char *scripts[], int progNum){
     latestPid = -1; // initialized latestPid
 
     char line[1000];
+    char emptyLine[] = "EMPTY";
     int lineCount, startPosition;
     char buff[10];
 
@@ -47,19 +49,42 @@ int schedulerStart(char *scripts[], int progNum){
         strcat(file, scripts[i]);
         FILE *p = fopen(file,"rt"); 
         if(p == NULL) return badcommandFileDoesNotExist();
-        
+
+        int curPageTable[10]; //should connect this to PCB
         lineCount = 0;
+        int count = 0;
         startPosition; // contains position in memory of 1st line of code
+
+        int i = 0;
         
         while(!feof(p)){
             fgets(line, 999, p);
             lineCount++;
             sprintf(buff, "%d", lineCount);
-            if(lineCount == 1) startPosition = insert(buff, line);
-            else insert(buff, line);
+            int position = 0;
+            if(lineCount == 1){
+                startPosition = insert(buff, line);
+                position = startPosition;
+            } 
+            else {
+                position = insert(buff, line);
+            }
+
+            if(position % 3 == 0){
+                curPageTable[i] = position/3;
+                printf("%d\n", curPageTable[i]);
+                i++;
+            }
 
             memset(line, 0, sizeof(line));
+            count++;
         }
+    
+        while(count % 3 != 0){
+            insert(buff, emptyLine);
+            count++;
+        }
+    
         fclose(p);
 
         if(strcmp(policy, "SJF") == 0 || strcmp(policy, "AGING") == 0) insertInQueue(startPosition, lineCount); // add PCB to an ordered queue in inc order by program length (lines)
