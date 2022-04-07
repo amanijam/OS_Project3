@@ -272,6 +272,6 @@ int ls()
 
 int resetmem()
 {
-	mem_init();
+	varStore_init();
 	return 0;
 }

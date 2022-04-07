@@ -38,6 +38,18 @@ char *extract(char *model)
 	return strdup(value);
 }
 
+// Variable Store functions
+
+void varStore_init()
+{
+	int i;
+	for (i = 0; i < 1000; i++)
+	{
+		varStore[i].var = "none";
+		varStore[i].value = "none";
+	}
+}
+
 // Shell memory functions (Frame Store)
 
 void mem_init()
