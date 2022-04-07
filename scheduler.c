@@ -225,11 +225,15 @@ void runQueue(int progNum)
         char *currCommand;
         PCB *currPCB;
         currPCB = head;
+        int frame, position;
         while (head != NULL)
         {
             for (int j = 0; j < quantum; j++)
             {
-                currCommand = mem_get_value_from_position(currPCB->startMem + currPCB->pc - 1);
+                frame = currPCB->pageTable[(int) (currPCB->pc - 1)/3];
+                position =  frame*3 + (currPCB->pc - 1) % 3;
+                currCommand = mem_get_value_from_position(position);
+                //currCommand = mem_get_value_from_position(currPCB->startMem + currPCB->pc - 1);
                 parseInput(currCommand);         // from shell, which calls interpreter()
                 currPCB->pc = (currPCB->pc) + 1; // increment pc
                 if (currPCB->pc > currPCB->len)
@@ -238,9 +242,14 @@ void runQueue(int progNum)
 
             if (currPCB->pc > currPCB->len)
             { // if we executed everything, remove code from shellmemory and remove from queue (clean up) and go to next prog
-                for (int k = currPCB->startMem; k < currPCB->startMem + currPCB->len; k++)
+                int numOfPages = (int) (currPCB->len)/3 + 1;
+                int currFrame;
+                for (int k = 0; k < numOfPages; k++)
                 {
-                    mem_remove_by_position(k);
+                    currFrame = currPCB->pageTable[k];
+                    for(int l = 0; l < 3; l++){
+                        mem_remove_by_position(currFrame*3 + l);
+                    }    
                 }
                 int pidToRemove = currPCB->pid;
                 if (currPCB->next == NULL)
@@ -312,7 +321,7 @@ int enqueue(int start, int len, int pageTable[])
         new->lenScore = len;
         new->pc = 1;
         int ptSize = (int) len/3 + 1;
-        for(int i = 0; i < ptSize; i++) head->pageTable[i] = pageTable[i];
+        for(int i = 0; i < ptSize; i++) new->pageTable[i] = pageTable[i];
         new->next = NULL;
         return new->pid;
     }
