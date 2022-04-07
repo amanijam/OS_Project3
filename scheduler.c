@@ -114,20 +114,28 @@ void runQueue(int progNum)
     if (strcmp(policy, "FCFS") == 0 || strcmp(policy, "SJF") == 0)
     {
         char *currCommand;
+        int frame, position;
         for (int i = 0; i < progNum; i++)
         {
             // execute the entire program at the head
             for (int j = 0; j < head->len; j++)
             {
-                currCommand = mem_get_value_from_position(head->startMem + head->pc - 1);
+                frame = head->pageTable[(int) (head->pc - 1)/3];
+                position =  frame*3 + (head->pc - 1) % 3;
+                currCommand = mem_get_value_from_position(position);
                 head->pc = (head->pc) + 1; // increment pc
                 parseInput(currCommand);   // from shell, which calls interpreter()
             }
 
             // remove script course code from shellmemory and dequeue (clean up)
-            for (int k = head->startMem; k < head->startMem + head->len; k++)
+            int numOfPages = (int) (head->len)/3 + 1;
+            int currFrame;
+            for (int k = 0; k < numOfPages; k++)
             {
-                mem_remove_by_position(k);
+                currFrame = head->pageTable[k];
+                for(int l = 0; l < 3; l++){
+                    mem_remove_by_position(currFrame*3 + l);
+                }    
             }
             dequeue();
         }
@@ -139,11 +147,15 @@ void runQueue(int progNum)
         int endT = 0;
         char *currCommand;
         bool stopAging = false;
+        int frame, position;
 
         while (head != NULL)
         {
             // execute one command
-            currCommand = mem_get_value_from_position(head->startMem + head->pc - 1);
+            frame = head->pageTable[(int) (head->pc - 1)/3];
+            position =  frame*3 + (head->pc - 1) % 3;
+            currCommand = mem_get_value_from_position(position);
+
             head->pc = (head->pc) + 1; // increment pc
             parseInput(currCommand);   // from shell, which calls interpreter()
             endT++;                    // increment time
@@ -156,9 +168,14 @@ void runQueue(int progNum)
                     stopAging = age();
                     if (head->pc > head->len)
                     {
-                        for (int k = head->startMem; k < head->startMem + head->len; k++)
+                        int numOfPages = (int) (head->len)/3 + 1;
+                        int currFrame;
+                        for (int k = 0; k < numOfPages; k++)
                         {
-                            mem_remove_by_position(k);
+                            currFrame = head->pageTable[k];
+                            for(int l = 0; l < 3; l++){
+                                mem_remove_by_position(currFrame*3 + l);
+                            }    
                         }
                         dequeue();
                     }
@@ -209,9 +226,14 @@ void runQueue(int progNum)
                 { // aging stopped
                     if (head->pc > head->len)
                     {
-                        for (int k = head->startMem; k < head->startMem + head->len; k++)
+                        int numOfPages = (int) (head->len)/3 + 1;
+                        int currFrame;
+                        for (int k = 0; k < numOfPages; k++)
                         {
-                            mem_remove_by_position(k);
+                            currFrame = head->pageTable[k];
+                            for(int l = 0; l < 3; l++){
+                                mem_remove_by_position(currFrame*3 + l);
+                            }    
                         }
                         dequeue();
                     }
