@@ -128,7 +128,7 @@ void runQueue(int progNum)
             }
 
             // remove script course code from shellmemory and dequeue (clean up)
-            int numOfPages = (int) (head->len)/3 + 1;
+            int numOfPages = (int) (head->len + 2)/3 ; //round up
             int currFrame;
             for (int k = 0; k < numOfPages; k++)
             {
@@ -168,7 +168,7 @@ void runQueue(int progNum)
                     stopAging = age();
                     if (head->pc > head->len)
                     {
-                        int numOfPages = (int) (head->len)/3 + 1;
+                        int numOfPages = (int) (head->len + 2)/3 ; //round up
                         int currFrame;
                         for (int k = 0; k < numOfPages; k++)
                         {
@@ -226,7 +226,7 @@ void runQueue(int progNum)
                 { // aging stopped
                     if (head->pc > head->len)
                     {
-                        int numOfPages = (int) (head->len)/3 + 1;
+                        int numOfPages = (int) (head->len + 2)/3 ; //round up
                         int currFrame;
                         for (int k = 0; k < numOfPages; k++)
                         {
@@ -254,6 +254,7 @@ void runQueue(int progNum)
             {
                 frame = currPCB->pageTable[(int) (currPCB->pc - 1)/3];
                 position =  frame*3 + (currPCB->pc - 1) % 3;
+                // printf("command %d\n", position);
                 currCommand = mem_get_value_from_position(position);
                 //currCommand = mem_get_value_from_position(currPCB->startMem + currPCB->pc - 1);
                 parseInput(currCommand);         // from shell, which calls interpreter()
@@ -264,12 +265,13 @@ void runQueue(int progNum)
 
             if (currPCB->pc > currPCB->len)
             { // if we executed everything, remove code from shellmemory and remove from queue (clean up) and go to next prog
-                int numOfPages = (int) (currPCB->len)/3 + 1;
+                int numOfPages = (int) (currPCB->len + 2)/3 ; //round up
                 int currFrame;
                 for (int k = 0; k < numOfPages; k++)
                 {
                     currFrame = currPCB->pageTable[k];
                     for(int l = 0; l < 3; l++){
+                        // printf("removing %d\n", currFrame*3 + l);
                         mem_remove_by_position(currFrame*3 + l);
                     }    
                 }
