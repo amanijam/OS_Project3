@@ -127,6 +127,7 @@ int interpreter(char *command_args[], int args_size)
 		int numOfProgs = args_size - 2;
 
 		// array of script file names
+		// load script to backing store
 		char *scripts[3];
 		for (int i = 1; i < numOfProgs + 1; i++)
 		{

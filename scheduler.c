@@ -14,8 +14,8 @@ typedef struct PCB
     int len; // length = number of lines of code
     int lenScore;
     int pc; // current line to execute
-    struct PCB *next;
     int pageTable[100];
+    struct PCB *next;
 } PCB;
 
 PCB *head = NULL; // global head of ready queue
@@ -26,9 +26,9 @@ void setPolicy(char *p);
 int schedulerStart(char *scripts[], int progNum);
 void runQueue(int progNum);
 bool age();
-int enqueue(int start, int len);
-int prepend(int start, int len);
-int insertInQueue(int start, int len);
+int enqueue(int start, int len, int pageTable[]);
+int prepend(int start, int len, int pageTable[]);
+int insertInQueue(int start, int len, int pageTable[]);
 int dequeue();
 void removeFromQueue(int pid);
 
@@ -43,7 +43,7 @@ int schedulerStart(char *scripts[], int progNum)
 
     char line[1000];
     char emptyLine[] = "EMPTY";
-    int lineCount, startPosition;
+    int lineCount, startPosition, position;
     char buff[10];
 
     for (int i = 0; i < progNum; i++)
@@ -54,10 +54,11 @@ int schedulerStart(char *scripts[], int progNum)
         if (p == NULL)
             return badcommandFileDoesNotExist();
 
-        int curPageTable[10]; // should connect this to PCB
+        int curPageTable[100]; // should connect this to PCB
+        int count;
         lineCount = 0;
-        int count = 0;
         startPosition; // contains position in memory of 1st line of code
+        position; // index in shellmemory
 
         int i = 0;
 
@@ -66,7 +67,7 @@ int schedulerStart(char *scripts[], int progNum)
             fgets(line, 999, p);
             lineCount++;
             sprintf(buff, "%d", lineCount);
-            int position = 0;
+            
             if (lineCount == 1)
             {
                 startPosition = insert(buff, line);
@@ -77,10 +78,12 @@ int schedulerStart(char *scripts[], int progNum)
                 position = insert(buff, line);
             }
 
+            //printf("position = %d\n", position);
+
             if (position % 3 == 0)
             {
                 curPageTable[i] = position / 3;
-                printf("%d\n", curPageTable[i]);
+                //printf("curPageTable[%d] = %d\n", i, curPageTable[i]);
                 i++;
             }
 
@@ -94,12 +97,14 @@ int schedulerStart(char *scripts[], int progNum)
             count++;
         }
 
+        // show page table
+
         fclose(p);
 
         if (strcmp(policy, "SJF") == 0 || strcmp(policy, "AGING") == 0)
-            insertInQueue(startPosition, lineCount); // add PCB to an ordered queue in inc order by program length (lines)
+            insertInQueue(startPosition, lineCount, curPageTable); // add PCB to an ordered queue in inc order by program length (lines)
         else
-            enqueue(startPosition, lineCount); // add PCB to the end of queue (no ordering)
+            enqueue(startPosition, lineCount, curPageTable); // add PCB to the end of queue (no ordering)
     }
     runQueue(progNum);
 }
@@ -277,7 +282,7 @@ bool age()
 
 // Add PCB at the end of the queue
 // Return its pid
-int enqueue(int start, int len)
+int enqueue(int start, int len, int pageTable[])
 {
     if (head == NULL)
     {
@@ -287,6 +292,8 @@ int enqueue(int start, int len)
         head->len = len;
         head->lenScore = len;
         head->pc = 1;
+        int ptSize = (int) len/3 + 1;
+        for(int i = 0; i < ptSize; i++) head->pageTable[i] = pageTable[i];
         head->next = NULL;
         return head->pid;
     }
@@ -304,6 +311,8 @@ int enqueue(int start, int len)
         new->len = len;
         new->lenScore = len;
         new->pc = 1;
+        int ptSize = (int) len/3 + 1;
+        for(int i = 0; i < ptSize; i++) head->pageTable[i] = pageTable[i];
         new->next = NULL;
         return new->pid;
     }
@@ -311,7 +320,7 @@ int enqueue(int start, int len)
 
 // Add PCB at the head of the queue
 // Return its pid
-int prepend(int start, int len)
+int prepend(int start, int len, int pageTable[])
 {
     if (head == NULL)
     {
@@ -321,6 +330,8 @@ int prepend(int start, int len)
         head->len = len;
         head->lenScore = len;
         head->pc = 1;
+        int ptSize = (int) len/3 + 1;
+        for(int i = 0; i < ptSize; i++) head->pageTable[i] = pageTable[i];
         head->next = NULL;
     }
     else
@@ -331,6 +342,8 @@ int prepend(int start, int len)
         new->len = len;
         new->lenScore = len;
         new->pc = 1;
+        int ptSize = (int) len/3 + 1;
+        for(int i = 0; i < ptSize; i++) new->pageTable[i] = pageTable[i];
         new->next = head;
         head = new;
     }
@@ -339,12 +352,12 @@ int prepend(int start, int len)
 
 // Add a PCB to an ordered queue (increasing by length)
 // Return pid
-int insertInQueue(int start, int len)
+int insertInQueue(int start, int len, int pageTable[])
 {
     if (head == NULL)
-        return enqueue(start, len);
+        return enqueue(start, len, pageTable);
     else if (len < head->len)
-        return prepend(start, len);
+        return prepend(start, len, pageTable);
     else
     {
         PCB *curr = head;
@@ -358,6 +371,8 @@ int insertInQueue(int start, int len)
                 new->len = len;
                 new->lenScore = len;
                 new->pc = 1;
+                int ptSize = (int) len/3 + 1;
+                for(int i = 0; i < ptSize; i++) new->pageTable[i] = pageTable[i];
                 PCB *next = curr->next;
                 curr->next = new;
                 new->next = next;
@@ -365,7 +380,7 @@ int insertInQueue(int start, int len)
             }
             curr = curr->next;
         }
-        return enqueue(start, len); // if program wasn't placed in the queue, add it to the end
+        return enqueue(start, len, pageTable); // if program wasn't placed in the queue, add it to the end
     }
 }
 
