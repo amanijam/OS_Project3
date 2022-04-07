@@ -99,6 +99,11 @@ int interpreter(char *command_args[], int args_size)
 	{
 		if (args_size != 2)
 			return badcommand();
+		char command[50] = "";
+		strcat(command, "cp ");
+		strcat(command, command_args[1]);
+		strcat(command, " backingStore");
+		system(command);
 		return run(command_args[1]);
 	}
 	else if (strcmp(command_args[0], "my_ls") == 0)
