@@ -64,6 +64,8 @@ int schedulerStart(char *scripts[], int progNum)
 
         while (!feof(p))
         {
+            if (i > 1) break;
+            
             fgets(line, 999, p);
             lineCount++;
             sprintf(buff, "%d", lineCount);
@@ -83,7 +85,7 @@ int schedulerStart(char *scripts[], int progNum)
             if (position % 3 == 0)
             {
                 curPageTable[i] = position / 3;
-                //printf("curPageTable[%d] = %d\n", i, curPageTable[i]);
+                printf("curPageTable[%d] = %d\n", i, curPageTable[i]);
                 i++;
             }
 

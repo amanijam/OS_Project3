@@ -240,6 +240,8 @@ int run(char *script)
 
 	while (!feof(p))
 	{
+		if (lineCount > 2) break;
+		
 		fgets(line, 999, p);
 		lineCount++;
 		sprintf(lineBuffer, "%d", lineCount);
