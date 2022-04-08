@@ -8,9 +8,16 @@ struct memory_struct
 	char *value;
 };
 
+typedef struct frame_struct
+{
+	int pid;
+	int pageNum;
+	char *value;
+} Frame;
+
 // struct memory_struct frameStore[1000];
 struct memory_struct varStore[1000];
-char *frameStore[1000];
+Frame *frameStore[1000];
 
 // Helper functions
 int match(char *model, char *var)
@@ -44,7 +51,6 @@ char *extract(char *model)
 void varstr_init()
 {
 	int i;
-	printf("Initializing Variable Store with size %d\n", VARMEMSIZE);
 	for (i = 0; i < VARMEMSIZE; i++)
 	{
 		varStore[i].var = "none";
@@ -111,8 +117,13 @@ char *mem_get_value(char *var_in)
 void framestr_init()
 {
 	int i;
-	printf("Initializing Frame Store with size %d\n", FRAMESIZE);
-	for (i = 0; i < FRAMESIZE; i++) frameStore[i] = "none";
+	for (i = 0; i < FRAMESIZE; i++)
+	{
+		frameStore[i] = malloc(sizeof(Frame));
+		frameStore[i]->pid = -1;
+		frameStore[i]->pageNum = -1;
+		frameStore[i]->value = "none";
+	}
 }
 
 // Return position in memory array where the key value pair was placed in
@@ -131,29 +142,33 @@ void framestr_init()
 
 // 	return 1001;
 // }
-int insert_framestr(char *line)
+
+// Insert in frame store in first available spot
+int insert_framestr(int pid, int pn, char *line)
 {
 	int i;
 	for (i = 0; i < FRAMESIZE; i++)
 	{
-		if (strcmp(frameStore[i], "none") == 0)
+		if (strcmp(frameStore[i]->value, "none") == 0)
 		{
-			frameStore[i] = strdup(line);
+			frameStore[i]->pid = pid;
+			frameStore[i]->pageNum = pn;
+			frameStore[i]->value = strdup(line);
 			return i;
 		}
 	}
 	return 1001;
 }
 
-char *mem_get_from_framestr(int i)
+Frame *mem_get_from_framestr(int i)
 {
 	if (i < FRAMESIZE)
 		return frameStore[i];
-	else
-		return "Invalid position";
 }
 
 void mem_remove_from_framestr(int i)
 {
-	frameStore[i] = "none";
+	frameStore[i]->pid = -1;
+	frameStore[i]->pageNum = -1;
+	frameStore[i]->value = "none";
 }

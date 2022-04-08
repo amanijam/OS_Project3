@@ -7,6 +7,13 @@
 #include "shell.h"
 #include "scheduler.h"
 
+typedef struct frame_struct
+{
+	int pid;
+	int pageNum;
+	char *value;
+} Frame;
+
 int MAX_ARGS_SIZE = 7;
 
 int help();
@@ -235,29 +242,29 @@ int run(char *script)
 
 	// Load script source code into frame store
 	int lineCount = 0;
-	// char lineBuffer[10];
 	int startPosition; // contains position in memory of 1st line of code
 
 	while (!feof(p))
 	{
 		fgets(line, 999, p);
 		lineCount++;
-		// sprintf(lineBuffer, "%d", lineCount);
 
 		if (lineCount == 1)
-			startPosition = insert_framestr(line);
+			startPosition = insert_framestr(1, 1, line);
 		else
-			insert_framestr(line);
+			insert_framestr(1, 1, line);
 
 		memset(line, 0, sizeof(line));
 	}
 	fclose(p);
 
+	Frame *currFrame;
 	char *currCommand;
 	int counter = 0;
 	for (int i = 0; i < lineCount; i++)
 	{
-		currCommand = mem_get_from_framestr(startPosition + counter);
+		currFrame = mem_get_from_framestr(startPosition + counter);
+		currCommand = currFrame->value;
 		counter++;				 // increment pc
 		parseInput(currCommand); // from shell, which calls interpreter()
 	}
