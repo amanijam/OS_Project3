@@ -8,7 +8,7 @@ struct memory_struct
 	char *value;
 };
 
-struct memory_struct shellmemory[1000];
+struct memory_struct frameStore[1000];
 struct memory_struct varStore[1000];
 
 // Helper functions
@@ -43,64 +43,34 @@ char *extract(char *model)
 void varStore_init()
 {
 	int i;
-	for (i = 0; i < 1000; i++)
+	printf("Initializing Variable Store with size %d\n", VARMEMSIZE);
+	for (i = 0; i < VARMEMSIZE; i++)
 	{
 		varStore[i].var = "none";
 		varStore[i].value = "none";
 	}
 }
 
-// Shell memory functions (Frame Store)
-
-void mem_init()
-{
-	int i;
-	for (i = 0; i < 1000; i++)
-	{
-		shellmemory[i].var = "none";
-		shellmemory[i].value = "none";
-	}
-}
-
 // Set key value pair
 int mem_set_value(char *var_in, char *value_in)
 {
-
 	int i;
-
-	for (i = 0; i < 1000; i++)
+	for (i = 0; i < VARMEMSIZE; i++)
 	{
-		if (strcmp(shellmemory[i].var, var_in) == 0)
+		if (strcmp(varStore[i].var, var_in) == 0)
 		{
-			shellmemory[i].value = strdup(value_in);
+			varStore[i].value = strdup(value_in);
 			return i;
 		}
 	}
 
 	// Value does not exist, need to find a free spot.
-	for (i = 0; i < 1000; i++)
+	for (i = 0; i < VARMEMSIZE; i++)
 	{
-		if (strcmp(shellmemory[i].var, "none") == 0)
+		if (strcmp(varStore[i].var, "none") == 0)
 		{
-			shellmemory[i].var = strdup(var_in);
-			shellmemory[i].value = strdup(value_in);
-			return i;
-		}
-	}
-
-	return 1001;
-}
-
-// Return position in memory array where the key value pair was placed in
-int insert(char *var_in, char *value_in)
-{
-	int i;
-	for (i = 0; i < 1000; i++)
-	{
-		if (strcmp(shellmemory[i].var, "none") == 0)
-		{
-			shellmemory[i].var = strdup(var_in);
-			shellmemory[i].value = strdup(value_in);
+			varStore[i].var = strdup(var_in);
+			varStore[i].value = strdup(value_in);
 			return i;
 		}
 	}
@@ -112,30 +82,58 @@ int insert(char *var_in, char *value_in)
 char *mem_get_value(char *var_in)
 {
 	int i;
-
-	for (i = 0; i < 1000; i++)
+	for (i = 0; i < VARMEMSIZE; i++)
 	{
-		if (strcmp(shellmemory[i].var, var_in) == 0)
+		if (strcmp(varStore[i].var, var_in) == 0)
 		{
-
-			return strdup(shellmemory[i].value);
+			return strdup(varStore[i].value);
 		}
 	}
 	return "Variable does not exist";
 }
 
-char *mem_get_value_from_position(int i)
+
+
+// Frame Store functions
+
+void framestr_init()
 {
-	if (i < 1000)
+	int i;
+	printf("Initializing Frame Store with size %d\n", FRAMESIZE);
+	for (i = 0; i < FRAMESIZE; i++)
 	{
-		return shellmemory[i].value;
+		frameStore[i].var = "none";
+		frameStore[i].value = "none";
 	}
+}
+
+// Return position in memory array where the key value pair was placed in
+int insert_framestr(char *var_in, char *value_in)
+{
+	int i;
+	for (i = 0; i < FRAMESIZE; i++)
+	{
+		if (strcmp(frameStore[i].var, "none") == 0)
+		{
+			frameStore[i].var = strdup(var_in);
+			frameStore[i].value = strdup(value_in);
+			return i;
+		}
+	}
+
+	return 1001;
+}
+
+char *mem_get_from_framestr(int i)
+{
+	if (i < FRAMESIZE)
+		return frameStore[i].value;
 	else
 		return "Invalid position";
 }
 
-void mem_remove_by_position(int i)
+void mem_remove_from_framestr(int i)
 {
-	shellmemory[i].var = "none";
-	shellmemory[i].value = "none";
+	frameStore[i].var = "none";
+	frameStore[i].value = "none";
 }
