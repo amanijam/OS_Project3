@@ -174,7 +174,7 @@ int help()
 
 int quit()
 {
-	system("rm -rf backingStore");
+	system("rmd -rf backingStore");
 	printf("%s\n", "Bye!");
 	exit(0);
 }
@@ -238,10 +238,8 @@ int run(char *script)
 	char lineBuffer[10];
 	int startPosition; // contains position in memory of 1st line of code
 
-	while (!feof(p))
+	while (!feof(p) || lineCount > 2)
 	{
-		if (lineCount > 2) break;
-		
 		fgets(line, 999, p);
 		lineCount++;
 		sprintf(lineBuffer, "%d", lineCount);

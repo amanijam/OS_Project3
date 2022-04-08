@@ -40,6 +40,7 @@ void setPolicy(char *p)
 int schedulerStart(char *scripts[], int progNum)
 {
     latestPid = -1; // initialized latestPid
+    printf("Frame Store Size = %d; Variable Store Size = %d\n", FRAMESIZE, VARMEMSIZE);
 
     char line[1000];
     char emptyLine[] = "EMPTY";
@@ -63,9 +64,9 @@ int schedulerStart(char *scripts[], int progNum)
         int i = 0;
 
         while (!feof(p))
-        {
+        {        
             if (i > 1) break;
-            
+                
             fgets(line, 999, p);
             lineCount++;
             sprintf(buff, "%d", lineCount);
