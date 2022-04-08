@@ -8,8 +8,9 @@ struct memory_struct
 	char *value;
 };
 
-struct memory_struct frameStore[1000];
+// struct memory_struct frameStore[1000];
 struct memory_struct varStore[1000];
+char *frameStore[1000];
 
 // Helper functions
 int match(char *model, char *var)
@@ -40,7 +41,7 @@ char *extract(char *model)
 
 // Variable Store functions
 
-void varStore_init()
+void varstr_init()
 {
 	int i;
 	printf("Initializing Variable Store with size %d\n", VARMEMSIZE);
@@ -96,44 +97,63 @@ char *mem_get_value(char *var_in)
 
 // Frame Store functions
 
+// void framestr_init()
+// {
+// 	int i;
+// 	printf("Initializing Frame Store with size %d\n", FRAMESIZE);
+// 	for (i = 0; i < FRAMESIZE; i++)
+// 	{
+// 		frameStore[i].var = "none";
+// 		frameStore[i].value = "none";
+// 	}
+// }
+
 void framestr_init()
 {
 	int i;
 	printf("Initializing Frame Store with size %d\n", FRAMESIZE);
-	for (i = 0; i < FRAMESIZE; i++)
-	{
-		frameStore[i].var = "none";
-		frameStore[i].value = "none";
-	}
+	for (i = 0; i < FRAMESIZE; i++) frameStore[i] = "none";
 }
 
 // Return position in memory array where the key value pair was placed in
-int insert_framestr(char *var_in, char *value_in)
+// int insert_framestr(char *var_in, char *value_in)
+// {
+// 	int i;
+// 	for (i = 0; i < FRAMESIZE; i++)
+// 	{
+// 		if (strcmp(frameStore[i].var, "none") == 0)
+// 		{
+// 			frameStore[i].var = strdup(var_in);
+// 			frameStore[i].value = strdup(value_in);
+// 			return i;
+// 		}
+// 	}
+
+// 	return 1001;
+// }
+int insert_framestr(char *line)
 {
 	int i;
 	for (i = 0; i < FRAMESIZE; i++)
 	{
-		if (strcmp(frameStore[i].var, "none") == 0)
+		if (strcmp(frameStore[i], "none") == 0)
 		{
-			frameStore[i].var = strdup(var_in);
-			frameStore[i].value = strdup(value_in);
+			frameStore[i] = strdup(line);
 			return i;
 		}
 	}
-
 	return 1001;
 }
 
 char *mem_get_from_framestr(int i)
 {
 	if (i < FRAMESIZE)
-		return frameStore[i].value;
+		return frameStore[i];
 	else
 		return "Invalid position";
 }
 
 void mem_remove_from_framestr(int i)
 {
-	frameStore[i].var = "none";
-	frameStore[i].value = "none";
+	frameStore[i] = "none";
 }

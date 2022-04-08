@@ -33,7 +33,8 @@ int main(int argc, char *argv[])
 		userInput[i] = '\0';
 
 	// init shell memory
-	mem_init();
+	framestr_init();
+	varstr_init();
 
 	while (1)
 	{

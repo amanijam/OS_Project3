@@ -4,7 +4,7 @@ char *mem_get_value(char *var_in);
 
 
 void framestr_init();
-int insert_framestr(char *var_in, char *value_in);
+int insert_framestr(char *line);
 char *mem_get_from_framestr(int i);
 void mem_remove_from_framestr(int i);
 

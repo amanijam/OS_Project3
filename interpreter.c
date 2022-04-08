@@ -233,21 +233,21 @@ int run(char *script)
 	if (p == NULL)
 		return badcommandFileDoesNotExist();
 
-	// Load script source code into shellmemory
+	// Load script source code into frame store
 	int lineCount = 0;
-	char lineBuffer[10];
+	// char lineBuffer[10];
 	int startPosition; // contains position in memory of 1st line of code
 
 	while (!feof(p))
 	{
 		fgets(line, 999, p);
 		lineCount++;
-		sprintf(lineBuffer, "%d", lineCount);
+		// sprintf(lineBuffer, "%d", lineCount);
 
 		if (lineCount == 1)
-			startPosition = set(lineBuffer, line);
+			startPosition = insert_framestr(line);
 		else
-			set(lineBuffer, line);
+			insert_framestr(line);
 
 		memset(line, 0, sizeof(line));
 	}
@@ -257,15 +257,15 @@ int run(char *script)
 	int counter = 0;
 	for (int i = 0; i < lineCount; i++)
 	{
-		currCommand = mem_get_value_from_position(startPosition + counter);
+		currCommand = mem_get_from_framestr(startPosition + counter);
 		counter++;				 // increment pc
 		parseInput(currCommand); // from shell, which calls interpreter()
 	}
 
-	// remove script course code from shellmemory
+	// remove script course code from frame store
 	for (int i = startPosition; i < startPosition + lineCount; i++)
 	{
-		mem_remove_by_position(i);
+		mem_remove_from_framestr(i);
 	}
 
 	return errCode;
@@ -278,6 +278,6 @@ int ls()
 
 int resetmem()
 {
-	varStore_init();
+	varstr_init();
 	return 0;
 }

@@ -44,7 +44,7 @@ int schedulerStart(char *scripts[], int progNum)
     char line[1000];
     char emptyLine[] = "EMPTY";
     int lineCount, startPosition, position;
-    char buff[10];
+    // char buff[10];
 
     for (int i = 0; i < progNum; i++)
     {
@@ -66,16 +66,16 @@ int schedulerStart(char *scripts[], int progNum)
         {
             fgets(line, 999, p);
             lineCount++;
-            sprintf(buff, "%d", lineCount);
+            // sprintf(buff, "%d", lineCount);
             
             if (lineCount == 1)
             {
-                startPosition = insert(buff, line);
+                startPosition = insert_framestr(line);
                 position = startPosition;
             }
             else
             {
-                position = insert(buff, line);
+                position = insert_framestr(line);
             }
 
             //printf("position = %d\n", position);
@@ -93,7 +93,7 @@ int schedulerStart(char *scripts[], int progNum)
 
         while (count % 3 != 0)
         {
-            insert(buff, emptyLine);
+            insert_framestr(emptyLine);
             count++;
         }
 
@@ -122,7 +122,7 @@ void runQueue(int progNum)
             {
                 frame = head->pageTable[(int) (head->pc - 1)/3];
                 position =  frame*3 + (head->pc - 1) % 3;
-                currCommand = mem_get_value_from_position(position);
+                currCommand = mem_get_from_framestr(position);
                 head->pc = (head->pc) + 1; // increment pc
                 parseInput(currCommand);   // from shell, which calls interpreter()
             }
@@ -134,7 +134,7 @@ void runQueue(int progNum)
             {
                 currFrame = head->pageTable[k];
                 for(int l = 0; l < 3; l++){
-                    mem_remove_by_position(currFrame*3 + l);
+                    mem_remove_from_framestr(currFrame*3 + l);
                 }    
             }
             dequeue();
@@ -154,7 +154,7 @@ void runQueue(int progNum)
             // execute one command
             frame = head->pageTable[(int) (head->pc - 1)/3];
             position =  frame*3 + (head->pc - 1) % 3;
-            currCommand = mem_get_value_from_position(position);
+            currCommand = mem_get_from_framestr(position);
 
             head->pc = (head->pc) + 1; // increment pc
             parseInput(currCommand);   // from shell, which calls interpreter()
@@ -174,7 +174,7 @@ void runQueue(int progNum)
                         {
                             currFrame = head->pageTable[k];
                             for(int l = 0; l < 3; l++){
-                                mem_remove_by_position(currFrame*3 + l);
+                                mem_remove_from_framestr(currFrame*3 + l);
                             }    
                         }
                         dequeue();
@@ -232,7 +232,7 @@ void runQueue(int progNum)
                         {
                             currFrame = head->pageTable[k];
                             for(int l = 0; l < 3; l++){
-                                mem_remove_by_position(currFrame*3 + l);
+                                mem_remove_from_framestr(currFrame*3 + l);
                             }    
                         }
                         dequeue();
@@ -255,8 +255,7 @@ void runQueue(int progNum)
                 frame = currPCB->pageTable[(int) (currPCB->pc - 1)/3];
                 position =  frame*3 + (currPCB->pc - 1) % 3;
                 // printf("command %d\n", position);
-                currCommand = mem_get_value_from_position(position);
-                //currCommand = mem_get_value_from_position(currPCB->startMem + currPCB->pc - 1);
+                currCommand = mem_get_from_framestr(position);
                 parseInput(currCommand);         // from shell, which calls interpreter()
                 currPCB->pc = (currPCB->pc) + 1; // increment pc
                 if (currPCB->pc > currPCB->len)
@@ -272,7 +271,7 @@ void runQueue(int progNum)
                     currFrame = currPCB->pageTable[k];
                     for(int l = 0; l < 3; l++){
                         // printf("removing %d\n", currFrame*3 + l);
-                        mem_remove_by_position(currFrame*3 + l);
+                        mem_remove_from_framestr(currFrame*3 + l);
                     }    
                 }
                 int pidToRemove = currPCB->pid;
