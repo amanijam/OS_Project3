@@ -126,6 +126,11 @@ void framestr_init()
 	}
 }
 
+void freeFrameStr()
+{
+	for (int i = 0; i < FRAMESIZE; i++) free(frameStore[i]);
+}
+
 // Return position in memory array where the key value pair was placed in
 // int insert_framestr(char *var_in, char *value_in)
 // {

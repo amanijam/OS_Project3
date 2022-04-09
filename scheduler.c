@@ -30,7 +30,7 @@ PCB *head = NULL; // global head of ready queue
 char *policy;
 int latestPid = 0; // holds last used pid, in order to ensure all pid's are unique
 int pageSize = 3; // size of page in num of lines of code
-int evict = 0;
+int evict = 0; // index to evict
 
 void setPolicy(char *p);
 int schedulerStart(char *scripts[], int progNum);
@@ -133,6 +133,8 @@ int schedulerStart(char *scripts[], int progNum)
             enqueue(startPosition, lineCount, curPageTable, scripts[i]); // add PCB to the end of queue (no ordering)
     }
     runQueue(progNum);
+    freeFrameStr();
+    framestr_init();
 }
 
 void runQueue(int progNum)
@@ -305,15 +307,15 @@ void runQueue(int progNum)
 
             if (currPCB->pc > currPCB->len)
             { // if we executed everything, remove code from shellmemory and remove from queue (clean up) and go to next prog
-                int numOfPages = (int) (currPCB->len + 2)/3 ; //round up
-                int currFrameIndx;
-                for (int k = 0; k < numOfPages; k++)
-                {
-                    currFrameIndx = currPCB->pageTable[k];
-                    for(int l = 0; l < 3; l++){
-                        mem_remove_from_framestr(currFrameIndx*3 + l);
-                    }    
-                }
+                // int numOfPages = (int) (currPCB->len + 2)/3 ; //round up
+                // int currFrameIndx;
+                // for (int k = 0; k < numOfPages; k++)
+                // {
+                //     currFrameIndx = currPCB->pageTable[k];
+                //     for(int l = 0; l < 3; l++){
+                //         mem_remove_from_framestr(currFrameIndx*3 + l);
+                //     }    
+                // }
                 int pidToRemove = currPCB->pid;
                 if (currPCB->next == NULL)
                     currPCB = head;
@@ -391,24 +393,30 @@ int loadPage(PCB *pcb){
     }
     else // if from store was full, evict a page
     {
+        printf("evict index: %d\n", evict);
         Frame *toEvict = mem_get_from_framestr(evict);
         int evictId = toEvict->pid;
         int evictPn = toEvict->pageNum;
-        printf("Page fault!\n");
-        printf("Victim program number: %d\n", evictId);
-        printf("Victim page number: %d\n", evictPn);
-        printf("Victim page contents: %s\n", toEvict->value);
-        printf("End of victim page contents.\n");
-        mem_remove_from_framestr(evict);
 
         // find evicted pcb
         PCB *evicted = head;
         while(evicted->pid != evictId) evicted = evicted->next;
+
+        printf("Page fault!\n");
+        printf("Victim program number: %d\n", evictId);
+        printf("Victim page number: %d\n", evictPn);
+        printf("Victim page contents:\n");
+        for(int i = 0; i < pageSize; i++){
+            printf("%s\n", mem_get_from_framestr(evicted->pageTable[evictPn]*3 + i)->value);
+            mem_remove_from_framestr(evicted->pageTable[evictPn]*3 + i);
+        }
+        printf("End of victim page contents.\n");
+
         // Update page table of evicted pcb
         evicted->pageTable[evictPn] = -1; 
 
 
-        printf("Loading page %d for program %d\n", numPagesInFrameStr, pcb->pid);
+        //printf("Loading page %d for program %d with first line contents %s\n", pcb->pc/pageSize, pcb->pid, line);
         // Try inserting again
         position = insert_framestr(pcb->pid, pcb->pc/pageSize, line);
         memset(line, 0, sizeof(line));
@@ -431,7 +439,7 @@ int loadPage(PCB *pcb){
             position++;
         }
 
-        evict++;
+        evict = evict + pageSize;
     }
     
     fclose(p);
