@@ -12,7 +12,7 @@ typedef struct frame_struct
 	int pid;
 	int pageNum;
 	char *value;
-} Frame;
+} FrameSlice;
 
 int MAX_ARGS_SIZE = 7;
 
@@ -232,51 +232,11 @@ int print(char *var)
 
 int run(char *script)
 {
-	int errCode = 0;
-	char line[1000];
-	char file[100] = "backingStore/";
-	strcat(file, script);
-	FILE *p = fopen(file, "rt");
-
-	if (p == NULL)
-		return badcommandFileDoesNotExist();
-
-	// Load script source code into frame store
-	int lineCount = 0;
-	int startPosition; // contains position in memory of 1st line of code
-
-	while (!feof(p))
-	{
-		fgets(line, 999, p);
-		lineCount++;
-
-		if (lineCount == 1)
-			startPosition = insert_framestr(1, 1, line);
-		else
-			insert_framestr(1, 1, line);
-
-		memset(line, 0, sizeof(line));
-	}
-	fclose(p);
-
-	Frame *currFrame;
-	char *currCommand;
-	int counter = 0;
-	for (int i = 0; i < lineCount; i++)
-	{
-		currFrame = mem_get_from_framestr(startPosition + counter);
-		currCommand = currFrame->value;
-		counter++;				 // increment pc
-		parseInput(currCommand); // from shell, which calls interpreter()
-	}
-
-	// remove script course code from frame store
-	for (int i = startPosition; i < startPosition + lineCount; i++)
-	{
-		mem_remove_from_framestr(i);
-	}
-
-	return errCode;
+	char *policy = "RR";
+	setPolicy(policy);
+	char *scripts[1];
+	scripts[0] = script;
+	return schedulerStart(scripts, 1);
 }
 
 int ls()

@@ -77,7 +77,8 @@ int schedulerStart(char *scripts[], int progNum)
         int pt_indx = 0; // page table index
         int pageCount;
         int counter; // count line per page
-        for(pageCount = 0; pageCount < 2; pageCount++){
+        for(pageCount = 0; pageCount < 2; pageCount++)
+        {
             counter = 0;
             if(feof(p)) break; // if the file is empty, don't insert an empty page into the frame store
 
