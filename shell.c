@@ -14,6 +14,7 @@ int main(int argc, char *argv[])
 {
 	printf("%s\n", "Shell version 1.1 Created January 2022");
 	help();
+	printf("Frame Store Size = %d, Variable Store Size = %d\n", FRAMESIZE, VARMEMSIZE);
 
 	int error = system("mkdir backingStore");
 
@@ -32,7 +33,8 @@ int main(int argc, char *argv[])
 		userInput[i] = '\0';
 
 	// init shell memory
-	mem_init();
+	framestr_init();
+	varstr_init();
 
 	while (1)
 	{

@@ -10,25 +10,37 @@
 typedef struct PCB
 {
     int pid;
-    int startMem;
     int len; // length = number of lines of code
     int lenScore;
     int pc; // current line to execute
     int pageTable[100];
+    char *scriptName;
     struct PCB *next;
 } PCB;
 
+typedef struct frame_struct
+{
+	int pid;
+	int pageNum;
+	char *value;
+} FrameSlice;
+
 PCB *head = NULL; // global head of ready queue
+PCB *progQueueHead = NULL;
 char *policy;
-int latestPid; // holds last used pid, in order to ensure all pid's are unique
+int latestPid = 0; // holds last used pid, in order to ensure all pid's are unique
 
 void setPolicy(char *p);
 int schedulerStart(char *scripts[], int progNum);
+void copyContents(PCB *prog, PCB *ready);
+void freeProgQueue(int progNum);
 void runQueue(int progNum);
+int loadPage(PCB *pcb);
 bool age();
-int enqueue(int start, int len, int pageTable[]);
-int prepend(int start, int len, int pageTable[]);
-int insertInQueue(int start, int len, int pageTable[]);
+void moveToBackOfQueue(int pid);
+int enqueue(int len, int pageTable[], char *name);
+int prepend(int len, int pageTable[], char *name);
+int insertInQueue(int len, int pageTable[], char *name);
 int dequeue();
 void removeFromQueue(int pid);
 
@@ -43,9 +55,9 @@ int schedulerStart(char *scripts[], int progNum)
 
     char line[1000];
     char emptyLine[] = "EMPTY";
-    int lineCount, startPosition, position;
-    char buff[10];
+    int lineCount, position;
 
+    // Only load the first 2 pages of each program into the frame store
     for (int i = 0; i < progNum; i++)
     {
         char file[100] = "backingStore/";
@@ -54,87 +66,130 @@ int schedulerStart(char *scripts[], int progNum)
         if (p == NULL)
             return badcommandFileDoesNotExist();
 
-        int curPageTable[100]; // should connect this to PCB
-        int count;
+        // initialize page table
+        int curPageTable[100]; 
+        for(int j = 0; j < 100; j++) curPageTable[j] = -1;
+
         lineCount = 0;
-        startPosition; // contains position in memory of 1st line of code
-        position; // index in shellmemory
+        position; // index in frame store
 
-        int i = 0;
-
-        while (!feof(p))
+        // Loading first 2 pages 
+        int pt_indx = 0; // page table index
+        int pageCount;
+        int counter; // count line per page
+        for(pageCount = 0; pageCount < 2; pageCount++)
         {
+            counter = 0;
+            if(feof(p)) break; // if the file is empty, don't insert an empty page into the frame store
+
+            // Insert one page of size pageSize
+            while(!feof(p) && counter < pageSize)
+            {
+                fgets(line, 999, p);
+                lineCount++;
+                
+                position = insert_framestr(latestPid + 1, pt_indx, line);
+
+                // update page table
+                if (position % pageSize == 0)
+                {
+                    curPageTable[pt_indx] = position / pageSize;
+                    pt_indx++;
+                }
+
+                memset(line, 0, sizeof(line));
+                counter++;
+            }
+
+            // Correct 
+            while (counter % pageSize != 0)
+            {
+                insert_framestr(latestPid + 1, pt_indx, emptyLine);
+                counter++;
+            }
+        }
+
+        // Continue counting the number of lines
+        while(!feof(p)){
             fgets(line, 999, p);
             lineCount++;
-            sprintf(buff, "%d", lineCount);
-            
-            if (lineCount == 1)
-            {
-                startPosition = insert(buff, line);
-                position = startPosition;
-            }
-            else
-            {
-                position = insert(buff, line);
-            }
-
-            //printf("position = %d\n", position);
-
-            if (position % 3 == 0)
-            {
-                curPageTable[i] = position / 3;
-                //printf("curPageTable[%d] = %d\n", i, curPageTable[i]);
-                i++;
-            }
-
-            memset(line, 0, sizeof(line));
-            count++;
         }
-
-        while (count % 3 != 0)
-        {
-            insert(buff, emptyLine);
-            count++;
-        }
-
-        // show page table
 
         fclose(p);
 
+        // Add to ready queue
         if (strcmp(policy, "SJF") == 0 || strcmp(policy, "AGING") == 0)
-            insertInQueue(startPosition, lineCount, curPageTable); // add PCB to an ordered queue in inc order by program length (lines)
+            insertInQueue(lineCount, curPageTable, scripts[i]); // add PCB to an ordered queue in inc order by program length (lines)
         else
-            enqueue(startPosition, lineCount, curPageTable); // add PCB to the end of queue (no ordering)
+            enqueue(lineCount, curPageTable, scripts[i]); // add PCB to the end of queue (no ordering)
+    }
+    // build program queue
+    progQueueHead = malloc(sizeof(PCB));
+    copyContents(progQueueHead, head);
+    PCB *currProg = progQueueHead;
+    PCB *currReady = head;
+    for(int i = 1; i < progNum; i++){
+        PCB *newProg = malloc(sizeof(PCB));
+        currReady = currReady->next;
+        copyContents(newProg, currReady);
+        currProg->next = newProg;
+        currProg = newProg;
     }
     runQueue(progNum);
+    freeProgQueue(progNum);
+    freeFrameStr();
+    framestr_init();
+}
+
+void copyContents(PCB *prog, PCB *ready)
+{
+    prog->pid = ready->pid;
+    prog->len = ready->len;
+    prog->pc = ready->pc;
+    int ptSize = (int) prog->len/3 + 1;
+    for(int i = 0; i < ptSize; i++) prog->pageTable[i] = ready->pageTable[i];
+    prog->scriptName = ready->scriptName;
+}
+
+void freeProgQueue(int progNum)
+{
+    PCB *prev = progQueueHead;
+    PCB *curr;
+    for(int i = 0; i < progNum; i++){
+        curr = prev->next;
+        free(prev);
+        prev = curr;
+    }
 }
 
 void runQueue(int progNum)
 {
     if (strcmp(policy, "FCFS") == 0 || strcmp(policy, "SJF") == 0)
     {
+        FrameSlice *currFSlice;
         char *currCommand;
-        int frame, position;
+        int frameNum, position;
         for (int i = 0; i < progNum; i++)
         {
             // execute the entire program at the head
             for (int j = 0; j < head->len; j++)
             {
-                frame = head->pageTable[(int) (head->pc - 1)/3];
-                position =  frame*3 + (head->pc - 1) % 3;
-                currCommand = mem_get_value_from_position(position);
+                frameNum = head->pageTable[(int) (head->pc - 1)/3];
+                position =  frameNum*3 + (head->pc - 1) % 3;
+                currFSlice = mem_get_from_framestr(position);
+                currCommand = currFSlice->value;
                 head->pc = (head->pc) + 1; // increment pc
                 parseInput(currCommand);   // from shell, which calls interpreter()
             }
 
             // remove script course code from shellmemory and dequeue (clean up)
             int numOfPages = (int) (head->len + 2)/3 ; //round up
-            int currFrame;
+            int currFrameIndx;
             for (int k = 0; k < numOfPages; k++)
             {
-                currFrame = head->pageTable[k];
+                currFrameIndx = head->pageTable[k];
                 for(int l = 0; l < 3; l++){
-                    mem_remove_by_position(currFrame*3 + l);
+                    mem_remove_from_framestr(currFrameIndx*3 + l);
                 }    
             }
             dequeue();
@@ -145,16 +200,18 @@ void runQueue(int progNum)
         int timeSlice = 1;
         int startT = 0;
         int endT = 0;
+        FrameSlice *currFSlice;
         char *currCommand;
         bool stopAging = false;
-        int frame, position;
+        int frameNum, position;
 
         while (head != NULL)
         {
             // execute one command
-            frame = head->pageTable[(int) (head->pc - 1)/3];
-            position =  frame*3 + (head->pc - 1) % 3;
-            currCommand = mem_get_value_from_position(position);
+            frameNum = head->pageTable[(int) (head->pc - 1)/3];
+            position =  frameNum*3 + (head->pc - 1) % 3;
+            currFSlice = mem_get_from_framestr(position);
+            currCommand = currFSlice->value;
 
             head->pc = (head->pc) + 1; // increment pc
             parseInput(currCommand);   // from shell, which calls interpreter()
@@ -169,12 +226,12 @@ void runQueue(int progNum)
                     if (head->pc > head->len)
                     {
                         int numOfPages = (int) (head->len + 2)/3 ; //round up
-                        int currFrame;
+                        int currFrameIndx;
                         for (int k = 0; k < numOfPages; k++)
                         {
-                            currFrame = head->pageTable[k];
+                            currFrameIndx = head->pageTable[k];
                             for(int l = 0; l < 3; l++){
-                                mem_remove_by_position(currFrame*3 + l);
+                                mem_remove_from_framestr(currFrameIndx*3 + l);
                             }    
                         }
                         dequeue();
@@ -227,12 +284,12 @@ void runQueue(int progNum)
                     if (head->pc > head->len)
                     {
                         int numOfPages = (int) (head->len + 2)/3 ; //round up
-                        int currFrame;
+                        int currFrameIndx;
                         for (int k = 0; k < numOfPages; k++)
                         {
-                            currFrame = head->pageTable[k];
+                            currFrameIndx = head->pageTable[k];
                             for(int l = 0; l < 3; l++){
-                                mem_remove_by_position(currFrame*3 + l);
+                                mem_remove_from_framestr(currFrameIndx*3 + l);
                             }    
                         }
                         dequeue();
@@ -244,19 +301,28 @@ void runQueue(int progNum)
     else if (strcmp(policy, "RR") == 0)
     {
         int quantum = 2;
+        FrameSlice *currFSlice;
         char *currCommand;
-        PCB *currPCB;
+        PCB *currPCB, *nextPCB;
         currPCB = head;
-        int frame, position;
+        nextPCB = currPCB->next;
+        int frameNum, position;
+        bool pagefault = false;
         while (head != NULL)
         {
             for (int j = 0; j < quantum; j++)
             {
-                frame = currPCB->pageTable[(int) (currPCB->pc - 1)/3];
-                position =  frame*3 + (currPCB->pc - 1) % 3;
-                // printf("command %d\n", position);
-                currCommand = mem_get_value_from_position(position);
-                //currCommand = mem_get_value_from_position(currPCB->startMem + currPCB->pc - 1);
+                frameNum = currPCB->pageTable[(int) (currPCB->pc - 1)/3];
+                // check for fage fault
+                if(frameNum == -1){
+                    pagefault = true;
+                    // missing page is brought into frame store
+                    loadPage(currPCB);
+                    break;
+                }
+                position =  frameNum*3 + (currPCB->pc - 1) % 3;
+                currFSlice = mem_get_from_framestr(position);
+                currCommand = currFSlice->value;
                 parseInput(currCommand);         // from shell, which calls interpreter()
                 currPCB->pc = (currPCB->pc) + 1; // increment pc
                 if (currPCB->pc > currPCB->len)
@@ -264,34 +330,134 @@ void runQueue(int progNum)
             }
 
             if (currPCB->pc > currPCB->len)
-            { // if we executed everything, remove code from shellmemory and remove from queue (clean up) and go to next prog
-                int numOfPages = (int) (currPCB->len + 2)/3 ; //round up
-                int currFrame;
-                for (int k = 0; k < numOfPages; k++)
-                {
-                    currFrame = currPCB->pageTable[k];
-                    for(int l = 0; l < 3; l++){
-                        // printf("removing %d\n", currFrame*3 + l);
-                        mem_remove_by_position(currFrame*3 + l);
-                    }    
-                }
+            { // if we executed everything, remove from ready queue and go to next prog
                 int pidToRemove = currPCB->pid;
                 if (currPCB->next == NULL)
-                {
                     currPCB = head;
-                }
                 else
-                {
                     currPCB = currPCB->next;
-                }
                 removeFromQueue(pidToRemove);
             } // else, go to next prog
-            else if (currPCB->next == NULL)
-                currPCB = head;
-            else
-                currPCB = currPCB->next;
+            else if(pagefault){
+                PCB *next;
+                if(currPCB->next == NULL){
+                    next = head;
+                }  
+                else{
+                    next = currPCB->next;
+                    moveToBackOfQueue(currPCB->pid);
+                }
+                currPCB = next;
+            }
+            else{
+                if (currPCB->next == NULL)
+                    currPCB = head;
+                else
+                    currPCB = currPCB->next;
+            }
         }
     }
+}
+
+int loadPage(PCB *pcb){
+    // Open file
+    char file[100] = "backingStore/";
+    strcat(file, pcb->scriptName);
+    FILE *p = fopen(file, "rt");
+    if (p == NULL)
+        return badcommandFileDoesNotExist();
+
+    char line[1000];
+    char emptyLine[] = "EMPTY";
+
+    // skip the first lines up to PC
+    for(int i = 0; i < pcb->pc - 1; i++){
+        fgets(line, 999, p);
+        memset(line, 0, sizeof(line));
+    }
+
+    int numPagesInFrameStr = pcb->pc / pageSize;
+
+    // Insert up to page size lines into frame store
+    int position;
+    // Try to insert first line
+    fgets(line, 999, p);
+    position = insert_framestr(pcb->pid, pcb->pc/pageSize, line);
+
+    if(position != 1001) // if frame store was not full
+    {
+        memset(line, 0, sizeof(line));
+        for(int i = 1; i < pageSize; i++){
+            if(!feof(p)){
+                fgets(line, 999, p);
+                position = insert_framestr(pcb->pid, pcb->pc/pageSize, line);
+                memset(line, 0, sizeof(line));
+            }
+            else break;
+        }
+
+        // Update page table
+        pcb->pageTable[numPagesInFrameStr] = position / pageSize;
+
+        //Correction
+        while ((position+1) % pageSize != 0)
+        {
+            insert_framestr(pcb->pid, pcb->pc/pageSize, emptyLine);
+            position++;
+        }
+    }
+    else // if from store was full, evict a page
+    {
+        int LRU_index = getLRUFrameNum()*3;
+        FrameSlice *toEvict = mem_read_from_framestr(LRU_index);
+        
+        int evictId = toEvict->pid;
+        int evictPn = toEvict->pageNum;
+
+        // find evicted pcb
+        PCB *evicted = progQueueHead;
+        while(evicted->pid != evictId && evicted->next != NULL){
+            evicted = evicted->next;
+        }
+
+        printf("Page fault! Victim page contents:\n");
+        //printf("Victim program number: %d\n", evictId);
+        //printf("Victim page number: %d\n", evictPn);
+        //printf("Victim page contents:\n");
+        for(int i = 0; i < pageSize; i++){
+            printf("%s", mem_read_from_framestr(evicted->pageTable[evictPn]*3 + i)->value);
+            mem_remove_from_framestr(evicted->pageTable[evictPn]*3 + i);
+        }
+        printf("End of victim page contents.\n");
+
+        // Update page table of evicted pcb
+        evicted->pageTable[evictPn] = -1; 
+
+
+        // Try inserting again
+        position = insert_framestr(pcb->pid, pcb->pc/pageSize, line);
+        memset(line, 0, sizeof(line));
+        for(int i = 1; i < pageSize; i++){
+            if(!feof(p)){
+                fgets(line, 999, p);
+                position = insert_framestr(pcb->pid, pcb->pc/pageSize, line);
+                memset(line, 0, sizeof(line));
+            }
+            else break;
+        }
+
+        // Update page table of pcb in question
+        pcb->pageTable[numPagesInFrameStr] = position / pageSize;
+
+        //Correction
+        while ((position+1) % pageSize != 0)
+        {
+            insert_framestr(pcb->pid, pcb->pc/pageSize, emptyLine);
+            position++;
+        }
+    }
+
+    fclose(p);
 }
 
 // Decrease lenScore of all PCBs by 1, except for the head
@@ -313,20 +479,58 @@ bool age()
     return allZeros;
 }
 
-// Add PCB at the end of the queue
+void moveToBackOfQueue(int pid){
+    // PCB is not the head
+    if(pid != head->pid){
+       // get previous, curr, and post PCBs
+       PCB *prevPCB = head;
+       PCB *currPCB = prevPCB->next;
+       while(currPCB->pid != pid){
+           prevPCB = currPCB;
+           currPCB = currPCB->next;
+       }
+       PCB *postPCB = currPCB-> next;
+
+       // remove curr PCB from middle of queue
+       prevPCB->next = postPCB;
+
+       // get last PCB
+       PCB *end = head;
+       while(end->next != NULL) end = end->next;
+       end->next = currPCB;
+       currPCB->next = NULL;
+    } 
+    // PCB is the head and not the only one
+    else if(pid == head->pid && head->next != NULL){
+       PCB *currPCB = head;
+       PCB *second = head->next;
+
+       // update head
+       head = second;
+
+       // get last PCB
+       PCB *end = head;
+       while(end->next != NULL) end = end->next;
+       end->next = currPCB;
+       currPCB->next = NULL;
+    }
+    // If PCB is the head and the only one, do nothing
+}
+
+// Add new PCB at the end of the queue
 // Return its pid
-int enqueue(int start, int len, int pageTable[])
+int enqueue(int len, int pageTable[], char *name)
 {
     if (head == NULL)
     {
         head = malloc(sizeof(PCB));
         head->pid = ++latestPid;
-        head->startMem = start;
         head->len = len;
         head->lenScore = len;
         head->pc = 1;
         int ptSize = (int) len/3 + 1;
         for(int i = 0; i < ptSize; i++) head->pageTable[i] = pageTable[i];
+        head->scriptName = name;
         head->next = NULL;
         return head->pid;
     }
@@ -340,43 +544,43 @@ int enqueue(int start, int len, int pageTable[])
         PCB *new = malloc(sizeof(PCB));
         current->next = new;
         new->pid = ++latestPid; // unique pid
-        new->startMem = start;
         new->len = len;
         new->lenScore = len;
         new->pc = 1;
         int ptSize = (int) len/3 + 1;
         for(int i = 0; i < ptSize; i++) new->pageTable[i] = pageTable[i];
+        new->scriptName = name;
         new->next = NULL;
         return new->pid;
     }
 }
 
-// Add PCB at the head of the queue
+// Add new PCB at the head of the queue
 // Return its pid
-int prepend(int start, int len, int pageTable[])
+int prepend(int len, int pageTable[], char *name)
 {
     if (head == NULL)
     {
         head = malloc(sizeof(PCB));
         head->pid = ++latestPid;
-        head->startMem = start;
         head->len = len;
         head->lenScore = len;
         head->pc = 1;
         int ptSize = (int) len/3 + 1;
         for(int i = 0; i < ptSize; i++) head->pageTable[i] = pageTable[i];
+        head->scriptName = name;
         head->next = NULL;
     }
     else
     {
         PCB *new = malloc(sizeof(PCB));
         new->pid = ++latestPid; // unique pid
-        new->startMem = start;
         new->len = len;
         new->lenScore = len;
         new->pc = 1;
         int ptSize = (int) len/3 + 1;
         for(int i = 0; i < ptSize; i++) new->pageTable[i] = pageTable[i];
+        new->scriptName = name;
         new->next = head;
         head = new;
     }
@@ -385,12 +589,12 @@ int prepend(int start, int len, int pageTable[])
 
 // Add a PCB to an ordered queue (increasing by length)
 // Return pid
-int insertInQueue(int start, int len, int pageTable[])
+int insertInQueue(int len, int pageTable[], char *name)
 {
     if (head == NULL)
-        return enqueue(start, len, pageTable);
+        return enqueue(len, pageTable, name);
     else if (len < head->len)
-        return prepend(start, len, pageTable);
+        return prepend(len, pageTable, name);
     else
     {
         PCB *curr = head;
@@ -400,12 +604,12 @@ int insertInQueue(int start, int len, int pageTable[])
             {
                 PCB *new = malloc(sizeof(PCB));
                 new->pid = ++latestPid;
-                new->startMem = start;
                 new->len = len;
                 new->lenScore = len;
                 new->pc = 1;
                 int ptSize = (int) len/3 + 1;
                 for(int i = 0; i < ptSize; i++) new->pageTable[i] = pageTable[i];
+                new->scriptName = name;
                 PCB *next = curr->next;
                 curr->next = new;
                 new->next = next;
@@ -413,7 +617,7 @@ int insertInQueue(int start, int len, int pageTable[])
             }
             curr = curr->next;
         }
-        return enqueue(start, len, pageTable); // if program wasn't placed in the queue, add it to the end
+        return enqueue(len, pageTable, name); // if program wasn't placed in the queue, add it to the end
     }
 }
 
@@ -424,11 +628,8 @@ int dequeue()
     PCB **head_ptr = &head;
 
     //  Checks if queue is empty
-    if (*head_ptr == NULL)
-    {
-        return -1;
-    }
-
+    if (*head_ptr == NULL) return -1;
+    
     int retpid = (*head_ptr)->pid;
     PCB *next_pcb = (*head_ptr)->next;
     free(*head_ptr);
@@ -456,26 +657,18 @@ void removeFromQueue(int pid)
     while (cont)
     {
         if (currPCB->next == NULL)
-        {
             cont = false;
-        }
         else if (currPCB->next->pid == pid)
         {
             PCB *toRemove = currPCB->next;
             if (currPCB->next->next == NULL)
-            {
                 currPCB->next = NULL;
-            }
             else
-            {
                 currPCB->next = currPCB->next->next;
-            }
             free(toRemove);
             cont = false;
         }
         else
-        {
             currPCB = currPCB->next;
-        }
     }
 }

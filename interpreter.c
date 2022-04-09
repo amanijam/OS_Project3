@@ -7,6 +7,13 @@
 #include "shell.h"
 #include "scheduler.h"
 
+typedef struct frame_struct
+{
+	int pid;
+	int pageNum;
+	char *value;
+} FrameSlice;
+
 int MAX_ARGS_SIZE = 7;
 
 int help();
@@ -175,6 +182,7 @@ int help()
 int quit()
 {
 	system("rm -rf backingStore");
+	freeFrameStr();
 	printf("%s\n", "Bye!");
 	exit(0);
 }
@@ -224,51 +232,11 @@ int print(char *var)
 
 int run(char *script)
 {
-	int errCode = 0;
-	char line[1000];
-	char file[100] = "backingStore/";
-	strcat(file, script);
-	FILE *p = fopen(file, "rt");
-
-	if (p == NULL)
-		return badcommandFileDoesNotExist();
-
-	// Load script source code into shellmemory
-	int lineCount = 0;
-	char lineBuffer[10];
-	int startPosition; // contains position in memory of 1st line of code
-
-	while (!feof(p))
-	{
-		fgets(line, 999, p);
-		lineCount++;
-		sprintf(lineBuffer, "%d", lineCount);
-
-		if (lineCount == 1)
-			startPosition = set(lineBuffer, line);
-		else
-			set(lineBuffer, line);
-
-		memset(line, 0, sizeof(line));
-	}
-	fclose(p);
-
-	char *currCommand;
-	int counter = 0;
-	for (int i = 0; i < lineCount; i++)
-	{
-		currCommand = mem_get_value_from_position(startPosition + counter);
-		counter++;				 // increment pc
-		parseInput(currCommand); // from shell, which calls interpreter()
-	}
-
-	// remove script course code from shellmemory
-	for (int i = startPosition; i < startPosition + lineCount; i++)
-	{
-		mem_remove_by_position(i);
-	}
-
-	return errCode;
+	char *policy = "RR";
+	setPolicy(policy);
+	char *scripts[1];
+	scripts[0] = script;
+	return schedulerStart(scripts, 1);
 }
 
 int ls()
@@ -278,6 +246,6 @@ int ls()
 
 int resetmem()
 {
-	varStore_init();
+	varstr_init();
 	return 0;
 }
