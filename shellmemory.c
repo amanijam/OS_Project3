@@ -8,6 +8,9 @@ struct memory_struct
 	char *value;
 };
 
+int framesize=FRAMESIZE;
+int varmemsize=VARMEMSIZE;
+
 struct memory_struct shellmemory[FRAMESIZE];
 struct memory_struct varStore[VARMEMSIZE];
 

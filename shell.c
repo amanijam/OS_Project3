@@ -13,9 +13,12 @@ int parseInput(char ui[]);
 int main(int argc, char *argv[])
 {
 	printf("%s\n", "Shell version 1.1 Created January 2022");
+	printf("Frame Store Size = %d; Variable Store Size = %d\n", FRAMESIZE, VARMEMSIZE);
 	help();
 
-	if (system("mkdir backingStore") == -1)
+	int error = system("mkdir backingStore");
+
+	if (error == -1)
 	{
 		system("rm -rf backingStore");
 		system("mkdir backingStore");
