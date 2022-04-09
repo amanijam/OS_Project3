@@ -13,11 +13,37 @@ typedef struct frame_struct
 	int pid;
 	int pageNum;
 	char *value;
-} Frame;
+} FrameSlice;
+
+typedef struct frame_node
+{
+    struct frame_node *prev;
+    int frameNum;
+    struct frame_node *next;
+} FrameNode;
+
+typedef struct Queue
+{
+	int totNumFrames;
+	int count;
+	FrameNode *head;
+	FrameNode *tail;
+} LRU_Queue;
+
+typedef struct Hash
+{
+	int size;
+	FrameNode **array;
+} LRU_Hash;
 
 // struct memory_struct frameStore[1000];
 struct memory_struct varStore[1000];
-Frame *frameStore[1000];
+FrameSlice *frameStore[1000];
+// FrameNode *lru_queue_head = NULL;
+// FrameNode *lru_queue_tail = NULL;
+LRU_Queue *lru_queue;
+LRU_Hash *lru_hash;
+int pageSize = 3;
 
 // Helper functions
 int match(char *model, char *var)
@@ -103,50 +129,133 @@ char *mem_get_value(char *var_in)
 
 // Frame Store functions
 
-// void framestr_init()
-// {
-// 	int i;
-// 	printf("Initializing Frame Store with size %d\n", FRAMESIZE);
-// 	for (i = 0; i < FRAMESIZE; i++)
-// 	{
-// 		frameStore[i].var = "none";
-// 		frameStore[i].value = "none";
-// 	}
-// }
+void lru_queue_init(int numFrames){
+	lru_queue = malloc(sizeof(LRU_Queue));
+	lru_queue->totNumFrames = numFrames;
+	lru_queue->count = 0;
+	lru_queue->head = NULL;
+	lru_queue->tail = NULL;
+}
+
+void lru_hash_init(int size){
+	lru_hash = malloc(sizeof(LRU_Hash));
+	lru_hash->size = size;
+	lru_hash->array = malloc(lru_hash->size * sizeof(FrameNode));
+	for(int i = 0; i < size; i++){
+		lru_hash->array[i] = NULL;
+	}
+}
+
 
 void framestr_init()
 {
 	int i;
 	for (i = 0; i < FRAMESIZE; i++)
 	{
-		frameStore[i] = malloc(sizeof(Frame));
+		frameStore[i] = malloc(sizeof(FrameSlice));
 		frameStore[i]->pid = -1;
 		frameStore[i]->pageNum = -1;
 		frameStore[i]->value = "none";
 	}
+	lru_queue_init(FRAMESIZE/pageSize);
+	lru_hash_init(FRAMESIZE/pageSize);
 }
+
 
 void freeFrameStr()
 {
 	for (int i = 0; i < FRAMESIZE; i++) free(frameStore[i]);
 }
 
-// Return position in memory array where the key value pair was placed in
-// int insert_framestr(char *var_in, char *value_in)
-// {
-// 	int i;
-// 	for (i = 0; i < FRAMESIZE; i++)
-// 	{
-// 		if (strcmp(frameStore[i].var, "none") == 0)
-// 		{
-// 			frameStore[i].var = strdup(var_in);
-// 			frameStore[i].value = strdup(value_in);
-// 			return i;
-// 		}
-// 	}
+// Remove FrameNode at tail of LRU queue and return the frame number
+void dequeueLRU()
+{
+	//printf("removing tail\n");
+	if(lru_queue->tail == NULL) return;
 
-// 	return 1001;
-// }
+	FrameNode *ogtail = lru_queue->tail;
+	//int LRU_fNum = ogtail->frameNum;
+
+	if(lru_queue->head == lru_queue->tail){
+		lru_queue->head = NULL;
+		lru_queue->tail = NULL;
+	}
+	else{
+		FrameNode *prev = ogtail->prev;
+		prev->next = NULL;
+		lru_queue->tail = prev;
+	}
+	
+	free(ogtail);
+	lru_queue->count--;
+	//return LRU_fNum;
+}
+
+void enqueueLRU(int fNum)
+{
+	if(lru_queue->count == lru_queue->totNumFrames){
+		lru_hash->array[lru_queue->tail->frameNum] = NULL;
+		dequeueLRU();
+	}
+	FrameNode *new = malloc(sizeof(FrameNode));
+	new->frameNum = fNum;
+
+	if(lru_queue->head == NULL){
+		new->prev = NULL;
+		new->next = NULL;
+		lru_queue->head = new;
+		lru_queue->tail = new;
+	}
+	else{
+		new->prev = NULL;
+		new->next = lru_queue->head;
+		lru_queue->head->prev = new;
+		lru_queue->head = new;
+	}
+
+	lru_hash->array[fNum] = new;
+	lru_queue->count++;
+}
+
+// Add frame num to front of queue
+void referTo(int fNum){
+	FrameNode *refFrame = lru_hash->array[fNum];
+	
+	// If it's not in the queue, use enqueue to it to the head
+	if(refFrame == NULL){
+		//printf("Adding frame num %d to front of queue\n", fNum);
+		enqueueLRU(fNum);
+	}
+	// else if it's not already the head, detatch it from the middle of the queue and add it to the front
+	else if(refFrame != lru_queue->head){
+		//printf("Detatching frame num %d and adding it to front of queue\n", fNum);
+		FrameNode *prev = refFrame->prev;
+		if(refFrame == lru_queue->tail){
+			prev->next = NULL;
+			lru_queue->tail = prev;
+		}
+		else{
+			FrameNode *next = refFrame->next;
+			prev->next = next;
+			next->prev = prev;
+		}
+		refFrame->next = lru_queue->head;
+		refFrame->prev = NULL;
+		lru_queue->head->prev = refFrame;
+		lru_queue->head = refFrame;
+	}
+}
+
+int getLRUFrameNum()
+{
+	if(lru_queue->tail == NULL) return -1;
+	return lru_queue->tail->frameNum;
+}
+
+void evictFrame()
+{
+	dequeueLRU();
+}
 
 // Insert in frame store in first available spot
 int insert_framestr(int pid, int pn, char *line)
@@ -159,16 +268,22 @@ int insert_framestr(int pid, int pn, char *line)
 			frameStore[i]->pid = pid;
 			frameStore[i]->pageNum = pn;
 			frameStore[i]->value = strdup(line);
+			referTo(i/pageSize);
 			return i;
 		}
 	}
 	return 1001;
 }
 
-Frame *mem_get_from_framestr(int i)
+FrameSlice *mem_get_from_framestr(int i)
 {
-	if (i < FRAMESIZE)
-		return frameStore[i];
+	referTo(i/pageSize);
+	return frameStore[i];
+}
+
+FrameSlice *mem_read_from_framestr(int i)
+{
+	return frameStore[i];
 }
 
 void mem_remove_from_framestr(int i)
