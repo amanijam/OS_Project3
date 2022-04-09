@@ -10,7 +10,6 @@
 typedef struct PCB
 {
     int pid;
-    int startMem;
     int len; // length = number of lines of code
     int lenScore;
     int pc; // current line to execute
@@ -30,8 +29,6 @@ PCB *head = NULL; // global head of ready queue
 PCB *progQueueHead = NULL;
 char *policy;
 int latestPid = 0; // holds last used pid, in order to ensure all pid's are unique
-//int pageSize = 3; // size of page in num of lines of code
-int evict = 0;
 
 void setPolicy(char *p);
 int schedulerStart(char *scripts[], int progNum);
@@ -41,9 +38,9 @@ void runQueue(int progNum);
 int loadPage(PCB *pcb);
 bool age();
 void moveToBackOfQueue(int pid);
-int enqueue(int start, int len, int pageTable[], char *name);
-int prepend(int start, int len, int pageTable[], char *name);
-int insertInQueue(int start, int len, int pageTable[], char *name);
+int enqueue(int len, int pageTable[], char *name);
+int prepend(int len, int pageTable[], char *name);
+int insertInQueue(int len, int pageTable[], char *name);
 int dequeue();
 void removeFromQueue(int pid);
 
@@ -58,7 +55,7 @@ int schedulerStart(char *scripts[], int progNum)
 
     char line[1000];
     char emptyLine[] = "EMPTY";
-    int lineCount, startPosition, position;
+    int lineCount, position;
 
     // Only load the first 2 pages of each program into the frame store
     for (int i = 0; i < progNum; i++)
@@ -74,7 +71,6 @@ int schedulerStart(char *scripts[], int progNum)
         for(int j = 0; j < 100; j++) curPageTable[j] = -1;
 
         lineCount = 0;
-        startPosition; // contains position in memory of 1st line of code
         position; // index in frame store
 
         // Loading first 2 pages 
@@ -91,13 +87,7 @@ int schedulerStart(char *scripts[], int progNum)
                 fgets(line, 999, p);
                 lineCount++;
                 
-                if (lineCount == 1)
-                {
-                    startPosition = insert_framestr(latestPid + 1, pt_indx, line);
-                    position = startPosition;
-                }
-                else
-                    position = insert_framestr(latestPid + 1, pt_indx, line);
+                position = insert_framestr(latestPid + 1, pt_indx, line);
 
                 // update page table
                 if (position % pageSize == 0)
@@ -128,9 +118,9 @@ int schedulerStart(char *scripts[], int progNum)
 
         // Add to ready queue
         if (strcmp(policy, "SJF") == 0 || strcmp(policy, "AGING") == 0)
-            insertInQueue(startPosition, lineCount, curPageTable, scripts[i]); // add PCB to an ordered queue in inc order by program length (lines)
+            insertInQueue(lineCount, curPageTable, scripts[i]); // add PCB to an ordered queue in inc order by program length (lines)
         else
-            enqueue(startPosition, lineCount, curPageTable, scripts[i]); // add PCB to the end of queue (no ordering)
+            enqueue(lineCount, curPageTable, scripts[i]); // add PCB to the end of queue (no ordering)
     }
     // build program queue
     progQueueHead = malloc(sizeof(PCB));
@@ -153,7 +143,6 @@ int schedulerStart(char *scripts[], int progNum)
 void copyContents(PCB *prog, PCB *ready)
 {
     prog->pid = ready->pid;
-    prog->startMem = ready->startMem;
     prog->len = ready->len;
     prog->pc = ready->pc;
     int ptSize = (int) prog->len/3 + 1;
@@ -529,13 +518,12 @@ void moveToBackOfQueue(int pid){
 
 // Add new PCB at the end of the queue
 // Return its pid
-int enqueue(int start, int len, int pageTable[], char *name)
+int enqueue(int len, int pageTable[], char *name)
 {
     if (head == NULL)
     {
         head = malloc(sizeof(PCB));
         head->pid = ++latestPid;
-        head->startMem = start;
         head->len = len;
         head->lenScore = len;
         head->pc = 1;
@@ -555,7 +543,6 @@ int enqueue(int start, int len, int pageTable[], char *name)
         PCB *new = malloc(sizeof(PCB));
         current->next = new;
         new->pid = ++latestPid; // unique pid
-        new->startMem = start;
         new->len = len;
         new->lenScore = len;
         new->pc = 1;
@@ -569,13 +556,12 @@ int enqueue(int start, int len, int pageTable[], char *name)
 
 // Add new PCB at the head of the queue
 // Return its pid
-int prepend(int start, int len, int pageTable[], char *name)
+int prepend(int len, int pageTable[], char *name)
 {
     if (head == NULL)
     {
         head = malloc(sizeof(PCB));
         head->pid = ++latestPid;
-        head->startMem = start;
         head->len = len;
         head->lenScore = len;
         head->pc = 1;
@@ -588,7 +574,6 @@ int prepend(int start, int len, int pageTable[], char *name)
     {
         PCB *new = malloc(sizeof(PCB));
         new->pid = ++latestPid; // unique pid
-        new->startMem = start;
         new->len = len;
         new->lenScore = len;
         new->pc = 1;
@@ -603,12 +588,12 @@ int prepend(int start, int len, int pageTable[], char *name)
 
 // Add a PCB to an ordered queue (increasing by length)
 // Return pid
-int insertInQueue(int start, int len, int pageTable[], char *name)
+int insertInQueue(int len, int pageTable[], char *name)
 {
     if (head == NULL)
-        return enqueue(start, len, pageTable, name);
+        return enqueue(len, pageTable, name);
     else if (len < head->len)
-        return prepend(start, len, pageTable, name);
+        return prepend(len, pageTable, name);
     else
     {
         PCB *curr = head;
@@ -618,7 +603,6 @@ int insertInQueue(int start, int len, int pageTable[], char *name)
             {
                 PCB *new = malloc(sizeof(PCB));
                 new->pid = ++latestPid;
-                new->startMem = start;
                 new->len = len;
                 new->lenScore = len;
                 new->pc = 1;
@@ -632,7 +616,7 @@ int insertInQueue(int start, int len, int pageTable[], char *name)
             }
             curr = curr->next;
         }
-        return enqueue(start, len, pageTable, name); // if program wasn't placed in the queue, add it to the end
+        return enqueue(len, pageTable, name); // if program wasn't placed in the queue, add it to the end
     }
 }
 
