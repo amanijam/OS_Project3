@@ -160,7 +160,7 @@ void copyContents(PCB *prog, PCB *ready)
 
 void freeProgQueue()
 {
-    while(progQueueHead != NULL)
+    while(progQueueHead->next != NULL)
     {
         PCB **head_ptr = &progQueueHead;
 
@@ -169,7 +169,6 @@ void freeProgQueue()
         PCB *next_pcb = (*head_ptr)->next;
         free(*head_ptr);
         progQueueHead = next_pcb;
-        if(progQueueHead->next == NULL) break;
     }
 
     progQueueHead = NULL;
@@ -190,6 +189,11 @@ void runQueue(int progNum)
             for (int j = 0; j < head->len; j++)
             {
                 frameNum = head->pageTable[(int) (head->pc - 1)/3];
+                if(frameNum == -1){
+                    // missing page is brought into frame store
+                    loadPage(head);
+                    frameNum = head->pageTable[(int) (head->pc - 1)/3];
+                }
                 position =  frameNum*3 + (head->pc - 1) % 3;
                 currFSlice = mem_get_from_framestr(position);
                 currCommand = currFSlice->value;
@@ -197,16 +201,6 @@ void runQueue(int progNum)
                 parseInput(currCommand);   // from shell, which calls interpreter()
             }
 
-            // remove script course code from shellmemory and dequeue (clean up)
-            int numOfPages = (int) (head->len + 2)/3 ; //round up
-            int currFrameIndx;
-            for (int k = 0; k < numOfPages; k++)
-            {
-                currFrameIndx = head->pageTable[k];
-                for(int l = 0; l < 3; l++){
-                    mem_remove_from_framestr(currFrameIndx*3 + l);
-                }    
-            }
             dequeue();
         }
     }
@@ -224,6 +218,12 @@ void runQueue(int progNum)
         {
             // execute one command
             frameNum = head->pageTable[(int) (head->pc - 1)/3];
+            if(frameNum == -1)
+            {
+                // missing page is brought into frame store
+                loadPage(head);
+                frameNum = head->pageTable[(int) (head->pc - 1)/3];
+            }
             position =  frameNum*3 + (head->pc - 1) % 3;
             currFSlice = mem_get_from_framestr(position);
             currCommand = currFSlice->value;
@@ -240,15 +240,6 @@ void runQueue(int progNum)
                     stopAging = age();
                     if (head->pc > head->len)
                     {
-                        int numOfPages = (int) (head->len + 2)/3 ; //round up
-                        int currFrameIndx;
-                        for (int k = 0; k < numOfPages; k++)
-                        {
-                            currFrameIndx = head->pageTable[k];
-                            for(int l = 0; l < 3; l++){
-                                mem_remove_from_framestr(currFrameIndx*3 + l);
-                            }    
-                        }
                         dequeue();
                     }
                     // check if there is a prog with lenScore lower than that of the head
@@ -298,15 +289,6 @@ void runQueue(int progNum)
                 { // aging stopped
                     if (head->pc > head->len)
                     {
-                        int numOfPages = (int) (head->len + 2)/3 ; //round up
-                        int currFrameIndx;
-                        for (int k = 0; k < numOfPages; k++)
-                        {
-                            currFrameIndx = head->pageTable[k];
-                            for(int l = 0; l < 3; l++){
-                                mem_remove_from_framestr(currFrameIndx*3 + l);
-                            }    
-                        }
                         dequeue();
                     }
                 }
