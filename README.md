@@ -18,16 +18,9 @@
 * scheduler.c, scheduler.h
 
 ### (given test cases)
-* tc1
+* prog1-prog12
 
-* tc2
-
-* tc3
-
-* tc4
-
-* tc5 
-
+* tc1, tc2, tc3, tc4, tc5 (with results)
 
 ## Notes:
 Our code builds off of our A2 submission code. Everything added onto our previous submission is entirely our work.
