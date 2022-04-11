@@ -56,7 +56,7 @@ int schedulerStart(char *scripts[], int progNum)
     latestPid = -1; // initialize latestPid
 
     char line[1000];
-    char emptyLine[] = "EMPTY";
+    char emptyLine[] = "\nEMPTY\n";
     int lineCount, position;
 
     /* For each script:
@@ -160,13 +160,21 @@ void copyContents(PCB *prog, PCB *ready)
 
 void freeProgQueue()
 {
-    PCB *prev = progQueueHead;
-    PCB *curr;
-    while(prev != NULL){
-        curr = prev->next;
-        free(prev);
-        prev = curr;
+    while(progQueueHead != NULL)
+    {
+        PCB **head_ptr = &progQueueHead;
+
+        //  Checks if queue is empty
+        if (*head_ptr == NULL) return;
+
+        PCB *next_pcb = (*head_ptr)->next;
+        free(*head_ptr);
+        progQueueHead = next_pcb;
+        if(progQueueHead->next == NULL) break;
     }
+
+    progQueueHead = NULL;
+    free(progQueueHead);
 }
 
 // Run the ready queue based on scheduling policy
@@ -183,6 +191,11 @@ void runQueue(int progNum)
             for (int j = 0; j < head->len; j++)
             {
                 frameNum = head->pageTable[(int) (head->pc - 1)/3];
+                if(frameNum == -1){
+                    // missing page is brought into frame store
+                    loadPage(head);
+                    frameNum = head->pageTable[(int) (head->pc - 1)/3];
+                }
                 position =  frameNum*3 + (head->pc - 1) % 3;
                 currFSlice = mem_get_from_framestr(position);
                 currCommand = currFSlice->value;
@@ -190,16 +203,6 @@ void runQueue(int progNum)
                 parseInput(currCommand);   // from shell, which calls interpreter()
             }
 
-            // remove script course code from shellmemory and dequeue (clean up)
-            int numOfPages = (int) (head->len + 2)/3 ; //round up
-            int currFrameIndx;
-            for (int k = 0; k < numOfPages; k++)
-            {
-                currFrameIndx = head->pageTable[k];
-                for(int l = 0; l < 3; l++){
-                    mem_remove_from_framestr(currFrameIndx*3 + l);
-                }    
-            }
             dequeue();
         }
     }
@@ -381,7 +384,7 @@ int loadPage(PCB *pcb){
         return badcommandFileDoesNotExist();
 
     char line[1000];
-    char emptyLine[] = "EMPTY";
+    char emptyLine[] = "\nEMPTY\n";
 
     // skip the first lines up to PC
     for(int i = 0; i < pcb->pc - 1; i++){
@@ -445,77 +448,6 @@ int loadPage(PCB *pcb){
         insert_framestr(pcb->pid, pcb->pc/pageSize, emptyLine);
         position++;
     }
-
-    // if(position != 1001) // if frame store was not full (page can be safely loaded)
-    // {
-    //     memset(line, 0, sizeof(line));
-    //     for(int i = 1; i < pageSize; i++)
-    //     {
-    //         if(!feof(p)){
-    //             fgets(line, 999, p);
-    //             position = insert_framestr(pcb->pid, pcb->pc/pageSize, line);
-    //             memset(line, 0, sizeof(line));
-    //         }
-    //         else break;
-    //     }
-
-    //     // Update page table
-    //     pcb->pageTable[numPagesInFrameStr] = position / pageSize;
-
-    //     //Correction
-    //     while ((position+1) % pageSize != 0)
-    //     {
-    //         insert_framestr(pcb->pid, pcb->pc/pageSize, emptyLine);
-    //         position++;
-    //     }
-    // }
-    // else // if from store was full, must evict a page first
-    // {
-    //     int LRU_index = getLRUFrameNum()*3;
-    //     FrameSlice *toEvict = mem_read_from_framestr(LRU_index);
-        
-    //     int evictId = toEvict->pid;
-    //     int evictPn = toEvict->pageNum;
-
-    //     // find evicted pcb
-    //     PCB *evicted = progQueueHead;
-    //     while(evicted->pid != evictId && evicted->next != NULL){
-    //         evicted = evicted->next;
-    //     }
-
-    //     printf("Page fault! Victim page contents:\n");
-    //     for(int i = 0; i < pageSize; i++){
-    //         printf("%s", mem_read_from_framestr(evicted->pageTable[evictPn]*3 + i)->value);
-    //         mem_remove_from_framestr(evicted->pageTable[evictPn]*3 + i);
-    //     }
-    //     printf("End of victim page contents.\n");
-
-    //     // Update page table of evicted pcb
-    //     evicted->pageTable[evictPn] = -1; 
-
-
-    //     // Try inserting again
-    //     position = insert_framestr(pcb->pid, pcb->pc/pageSize, line);
-    //     memset(line, 0, sizeof(line));
-    //     for(int i = 1; i < pageSize; i++){
-    //         if(!feof(p)){
-    //             fgets(line, 999, p);
-    //             position = insert_framestr(pcb->pid, pcb->pc/pageSize, line);
-    //             memset(line, 0, sizeof(line));
-    //         }
-    //         else break;
-    //     }
-
-    //     // Update page table of pcb in question
-    //     pcb->pageTable[numPagesInFrameStr] = position / pageSize;
-
-    //     //Correction
-    //     while ((position+1) % pageSize != 0)
-    //     {
-    //         insert_framestr(pcb->pid, pcb->pc/pageSize, emptyLine);
-    //         position++;
-    //     }
-    // }
 
     fclose(p);
 }

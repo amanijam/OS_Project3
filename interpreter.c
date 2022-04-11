@@ -168,7 +168,6 @@ int help()
 int quit()
 {
 	system("rm -rf backingStore");
-	freeFrameStr();
 	printf("%s\n", "Bye!");
 	exit(0);
 }
