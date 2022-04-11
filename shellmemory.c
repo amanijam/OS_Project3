@@ -2,12 +2,14 @@
 #include <string.h>
 #include <stdio.h>
 
+// Struct for variable store entry
 struct memory_struct
 {
 	char *var;
 	char *value;
 };
 
+// Struct for frame store entry
 typedef struct frame_struct
 {
 	int pid;
@@ -15,6 +17,7 @@ typedef struct frame_struct
 	char *value;
 } FrameSlice;
 
+// Node struct for LRU_Queue
 typedef struct frame_node
 {
     struct frame_node *prev;
@@ -22,6 +25,7 @@ typedef struct frame_node
     struct frame_node *next;
 } FrameNode;
 
+// Struct for LRU_Queue
 typedef struct Queue
 {
 	int totNumFrames;
@@ -30,17 +34,15 @@ typedef struct Queue
 	FrameNode *tail;
 } LRU_Queue;
 
+// Struct for LRU_Hash
 typedef struct Hash
 {
 	int size;
 	FrameNode **array;
 } LRU_Hash;
 
-// struct memory_struct frameStore[1000];
 struct memory_struct varStore[1000];
 FrameSlice *frameStore[1000];
-// FrameNode *lru_queue_head = NULL;
-// FrameNode *lru_queue_tail = NULL;
 LRU_Queue *lru_queue;
 LRU_Hash *lru_hash;
 int pageSize = 3;
@@ -74,10 +76,9 @@ char *extract(char *model)
 
 // Variable Store functions
 
-void varstr_init()
+void resetmem()
 {
-	int i;
-	for (i = 0; i < VARMEMSIZE; i++)
+	for (int i = 0; i < VARMEMSIZE; i++)
 	{
 		varStore[i].var = "none";
 		varStore[i].value = "none";
@@ -146,11 +147,9 @@ void lru_hash_init(int size){
 	}
 }
 
-
 void framestr_init()
 {
-	int i;
-	for (i = 0; i < FRAMESIZE; i++)
+	for (int i = 0; i < FRAMESIZE; i++)
 	{
 		frameStore[i] = malloc(sizeof(FrameSlice));
 		frameStore[i]->pid = -1;
@@ -167,20 +166,20 @@ void freeFrameStr()
 	for (int i = 0; i < FRAMESIZE; i++) free(frameStore[i]);
 }
 
-// Remove FrameNode at tail of LRU queue and return the frame number
+// Remove FrameNode at tail of LRU queue
 void dequeueLRU()
 {
-	//printf("removing tail\n");
 	if(lru_queue->tail == NULL) return;
 
 	FrameNode *ogtail = lru_queue->tail;
-	//int LRU_fNum = ogtail->frameNum;
 
-	if(lru_queue->head == lru_queue->tail){
+	if(lru_queue->head == lru_queue->tail)
+	{
 		lru_queue->head = NULL;
 		lru_queue->tail = NULL;
 	}
-	else{
+	else
+	{
 		FrameNode *prev = ogtail->prev;
 		prev->next = NULL;
 		lru_queue->tail = prev;
@@ -188,25 +187,28 @@ void dequeueLRU()
 	
 	free(ogtail);
 	lru_queue->count--;
-	//return LRU_fNum;
 }
 
+// Add new Frame Node to the head of the LRU_Queue with frame number fNum
 void enqueueLRU(int fNum)
 {
-	if(lru_queue->count == lru_queue->totNumFrames){
+	if(lru_queue->count == lru_queue->totNumFrames)
+	{
 		lru_hash->array[lru_queue->tail->frameNum] = NULL;
 		dequeueLRU();
 	}
 	FrameNode *new = malloc(sizeof(FrameNode));
 	new->frameNum = fNum;
 
-	if(lru_queue->head == NULL){
+	if(lru_queue->head == NULL)
+	{
 		new->prev = NULL;
 		new->next = NULL;
 		lru_queue->head = new;
 		lru_queue->tail = new;
 	}
-	else{
+	else
+	{
 		new->prev = NULL;
 		new->next = lru_queue->head;
 		lru_queue->head->prev = new;
@@ -217,18 +219,16 @@ void enqueueLRU(int fNum)
 	lru_queue->count++;
 }
 
-// Add frame num to front of queue
+// Add Frame Node with frame number fNum to front of queue
 void referTo(int fNum){
 	FrameNode *refFrame = lru_hash->array[fNum];
 	
-	// If it's not in the queue, use enqueue to it to the head
-	if(refFrame == NULL){
-		//printf("Adding frame num %d to front of queue\n", fNum);
+	// If it's not in the queue, use enqueue add to it to the head
+	if(refFrame == NULL)
 		enqueueLRU(fNum);
-	}
-	// else if it's not already the head, detatch it from the middle of the queue and add it to the front
-	else if(refFrame != lru_queue->head){
-		//printf("Detatching frame num %d and adding it to front of queue\n", fNum);
+	// else if it's in the queue but not the head, detatch it from the middle of the queue and add it to the front
+	else if(refFrame != lru_queue->head)
+	{
 		FrameNode *prev = refFrame->prev;
 		if(refFrame == lru_queue->tail){
 			prev->next = NULL;
@@ -260,8 +260,7 @@ void evictFrame()
 // Insert in frame store in first available spot
 int insert_framestr(int pid, int pn, char *line)
 {
-	int i;
-	for (i = 0; i < FRAMESIZE; i++)
+	for (int i = 0; i < FRAMESIZE; i++)
 	{
 		if (strcmp(frameStore[i]->value, "none") == 0)
 		{

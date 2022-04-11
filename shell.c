@@ -33,8 +33,7 @@ int main(int argc, char *argv[])
 		userInput[i] = '\0';
 
 	// init shell memory
-	framestr_init();
-	varstr_init();
+	resetmem();
 
 	while (1)
 	{
@@ -82,9 +81,7 @@ int parseInput(char ui[])
 		w++;
 
 		if (ui[a] == '\0')
-		{
 			break;
-		}
 		else if (ui[a] == ';')
 		{
 			error = interpreter(words, w);

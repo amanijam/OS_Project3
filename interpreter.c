@@ -7,13 +7,6 @@
 #include "shell.h"
 #include "scheduler.h"
 
-typedef struct frame_struct
-{
-	int pid;
-	int pageNum;
-	char *value;
-} FrameSlice;
-
 int MAX_ARGS_SIZE = 7;
 
 int help();
@@ -27,7 +20,6 @@ int set(char *var, char *value);
 int print(char *var);
 int run(char *script);
 int ls();
-int resetmem();
 
 // Interpret commands and their arguments
 int interpreter(char *command_args[], int args_size)
@@ -35,9 +27,7 @@ int interpreter(char *command_args[], int args_size)
 	int i;
 
 	if (args_size < 1)
-	{
 		return badcommand();
-	}
 
 	for (i = 0; i < args_size; i++)
 	{ // strip spaces new line etc
@@ -59,13 +49,9 @@ int interpreter(char *command_args[], int args_size)
 	else if (strcmp(command_args[0], "set") == 0)
 	{
 		if (args_size > MAX_ARGS_SIZE)
-		{
 			return badcommandSet();
-		}
 		else if (args_size < 3)
-		{
 			return badcommand();
-		}
 		else
 		{
 			char *link = " ";
@@ -242,10 +228,4 @@ int run(char *script)
 int ls()
 {
 	return system("ls -1"); // lists directories in alphabetical order, 1 entry per line
-}
-
-int resetmem()
-{
-	varstr_init();
-	return 0;
 }
