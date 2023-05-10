@@ -45,3 +45,13 @@ At the start of our scheduler execution, the first 2 pages of each program is lo
 Situations where program pages that need to be accessed are not yet in the frame store are handled using page faults, which essentially attempts to load the missing page into the frame store. If the frame store is empty, a victim page is evicted (here, it is the LRU frame) and the necessary page is loaded into the frame store.
 
 In order to handle this, our shellmemory now maintains an LRU_Queue, with FrameNodes, and an LRU_Hash. This is used to keep track of the least recently used frame in the frame store. When the LRU frame is requested (from the scheduler), a function is called to return the LRU frame number (the FrameNode at the tail of the queue). The LRU_Queue and LRU_Hash are maintained and updated whenever a frame is "refered to", i.e. is inserted into the frame store or retrieved. A function must also be called from the scheduler whenever a frame is evicted, in order to update these structures.
+
+## Assignment Instructions
+
+![A3-1 of 7](https://github.com/amanijam/OS_Project3/assets/19826681/2d08eb07-1537-47aa-b64c-96b854f80ace)
+![A3-2 of 7](https://github.com/amanijam/OS_Project3/assets/19826681/6335173f-f2b9-4858-861c-43395df79122)
+![A3-3 of 7](https://github.com/amanijam/OS_Project3/assets/19826681/b804adc9-53c3-487c-a434-c8568ed932c2)
+![A3-4 of 7](https://github.com/amanijam/OS_Project3/assets/19826681/427b80c2-be53-4e91-9b9d-00069204af81)
+![A3-5 of 7](https://github.com/amanijam/OS_Project3/assets/19826681/226102af-e34d-4068-9f60-bbc2493e1787)
+![A3-6 of 7](https://github.com/amanijam/OS_Project3/assets/19826681/c066d7f2-f497-4d86-9855-6e0b25eb175b)
+![A3-7 of 7](https://github.com/amanijam/OS_Project3/assets/19826681/a1becf73-3573-470f-82c1-62caa0a695dc)
